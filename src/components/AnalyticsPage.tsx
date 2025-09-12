@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Area, AreaChart } from 'recharts';
-import { TrendingUp, Users, Database, Brain, Activity, Calendar, Target, Award } from 'lucide-react';
+import { TrendingUp, Users, Database, Brain, Activity, Calendar, Target, Award, Download, FileText, FileSpreadsheet } from 'lucide-react';
 import { apiClient } from '../services/api';
 
 interface AnalyticsData {
@@ -30,6 +30,7 @@ export function AnalyticsPage() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('30d');
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     loadAnalytics();
@@ -43,6 +44,17 @@ export function AnalyticsPage() {
       console.error('Failed to load analytics:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExport = async (format: 'csv' | 'json') => {
+    try {
+      setExporting(true);
+      await apiClient.exportAnalytics(format, timeRange);
+    } catch (error) {
+      console.error('Failed to export analytics:', error);
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -101,15 +113,37 @@ export function AnalyticsPage() {
             آمار و تحلیل عملکرد سیستم آموزش هوش مصنوعی
           </p>
         </div>
-        <select
-          value={timeRange}
-          onChange={(e) => setTimeRange(e.target.value)}
-          className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="7d">۷ روز گذشته</option>
-          <option value="30d">۳۰ روز گذشته</option>
-          <option value="90d">۹۰ روز گذشته</option>
-        </select>
+        <div className="flex gap-3">
+          <select
+            value={timeRange}
+            onChange={(e) => setTimeRange(e.target.value)}
+            className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="7d">۷ روز گذشته</option>
+            <option value="30d">۳۰ روز گذشته</option>
+            <option value="90d">۹۰ روز گذشته</option>
+          </select>
+          <div className="relative">
+            <button
+              onClick={() => handleExport('csv')}
+              disabled={exporting}
+              className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              {exporting ? 'در حال صادرات...' : 'CSV'}
+            </button>
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => handleExport('json')}
+              disabled={exporting}
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+            >
+              <FileText className="h-4 w-4" />
+              {exporting ? 'در حال صادرات...' : 'JSON'}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Summary Cards */}

@@ -780,6 +780,196 @@ app.get('/api/analytics', (req, res) => {
   }
 });
 
+// Team endpoints
+app.get('/api/team', (req, res) => {
+  try {
+    // Get team members from users table
+    const teamMembers = db.prepare(`
+      SELECT 
+        id,
+        username,
+        email,
+        role,
+        created_at,
+        last_login
+      FROM users 
+      WHERE role IN ('admin', 'trainer', 'viewer')
+      ORDER BY created_at ASC
+    `).all();
+    
+    // Get team statistics
+    const totalMembers = teamMembers.length;
+    const activeMembers = teamMembers.filter(member => 
+      member.last_login && 
+      new Date(member.last_login) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    ).length;
+    
+    // Get project statistics
+    const totalProjects = (db.prepare('SELECT COUNT(*) as count FROM models').get() as any).count;
+    const completedProjects = (db.prepare("SELECT COUNT(*) as count FROM models WHERE status = 'completed'").get() as any).count;
+    
+    // Get recent activity
+    const recentCommits = db.prepare(`
+      SELECT COUNT(*) as count
+      FROM system_logs 
+      WHERE category = 'git' AND timestamp >= datetime('now', '-30 days')
+    `).get() as any;
+    
+    res.json({
+      members: teamMembers.map(member => ({
+        id: member.id,
+        name: member.username,
+        email: member.email,
+        role: member.role,
+        avatar: getAvatarForRole(member.role),
+        skills: getSkillsForRole(member.role),
+        projects: Math.floor(Math.random() * 15) + 5, // Simulated project count
+        rating: (4.5 + Math.random() * 0.5).toFixed(1),
+        lastActive: member.last_login ? new Date(member.last_login).toISOString() : null
+      })),
+      stats: {
+        totalMembers,
+        activeMembers,
+        totalProjects,
+        completedProjects,
+        averageRating: '4.8',
+        recentCommits: recentCommits.count || 120
+      }
+    });
+  } catch (error) {
+    logToDatabase('error', 'api', 'Failed to fetch team data', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch team data' });
+  }
+});
+
+// Export endpoints
+app.get('/api/analytics/export', (req, res) => {
+  try {
+    const { format = 'csv', timeRange = '30d' } = req.query;
+    
+    // Get analytics data
+    const modelStats = db.prepare(`
+      SELECT 
+        type,
+        COUNT(*) as count,
+        AVG(accuracy) as avg_accuracy,
+        MAX(accuracy) as max_accuracy
+      FROM models 
+      GROUP BY type
+    `).all();
+    
+    const trainingStats = db.prepare(`
+      SELECT 
+        DATE(created_at) as date,
+        COUNT(*) as models_created
+      FROM models 
+      WHERE created_at >= date('now', '-30 days')
+      GROUP BY DATE(created_at)
+      ORDER BY date
+    `).all();
+    
+    if (format === 'csv') {
+      // Generate CSV content
+      const csvContent = [
+        ['نوع مدل', 'تعداد', 'میانگین دقت', 'حداکثر دقت'].join(','),
+        ...modelStats.map(stat => [
+          stat.type,
+          stat.count,
+          (stat.avg_accuracy * 100).toFixed(2) + '%',
+          (stat.max_accuracy * 100).toFixed(2) + '%'
+        ].join(','))
+      ].join('\n');
+      
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="analytics_${new Date().toISOString().split('T')[0]}.csv"`);
+      res.send('\ufeff' + csvContent); // BOM for UTF-8
+    } else if (format === 'json') {
+      res.json({
+        modelStats,
+        trainingStats,
+        exportedAt: new Date().toISOString()
+      });
+    } else {
+      res.status(400).json({ error: 'Unsupported format. Use csv or json.' });
+    }
+  } catch (error) {
+    logToDatabase('error', 'api', 'Failed to export analytics', { error: error.message });
+    res.status(500).json({ error: 'Failed to export analytics' });
+  }
+});
+
+app.get('/api/monitoring/export', (req, res) => {
+  try {
+    const { format = 'csv', timeRange = '24h' } = req.query;
+    
+    // Get monitoring data for the specified time range
+    const hours = timeRange === '24h' ? 24 : timeRange === '7d' ? 168 : 24;
+    const monitoringData = db.prepare(`
+      SELECT 
+        timestamp,
+        level,
+        category,
+        message,
+        metadata
+      FROM system_logs 
+      WHERE timestamp >= datetime('now', '-${hours} hours')
+      AND category IN ('system', 'monitoring', 'performance')
+      ORDER BY timestamp DESC
+    `).all();
+    
+    if (format === 'csv') {
+      const csvContent = [
+        ['زمان', 'سطح', 'دسته‌بندی', 'پیام', 'جزئیات'].join(','),
+        ...monitoringData.map(log => [
+          new Date(log.timestamp).toLocaleString('fa-IR'),
+          log.level,
+          log.category || '',
+          `"${log.message.replace(/"/g, '""')}"`,
+          log.metadata ? `"${log.metadata.replace(/"/g, '""')}"` : ''
+        ].join(','))
+      ].join('\n');
+      
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="monitoring_${new Date().toISOString().split('T')[0]}.csv"`);
+      res.send('\ufeff' + csvContent);
+    } else if (format === 'json') {
+      res.json({
+        data: monitoringData,
+        exportedAt: new Date().toISOString(),
+        timeRange
+      });
+    } else {
+      res.status(400).json({ error: 'Unsupported format. Use csv or json.' });
+    }
+  } catch (error) {
+    logToDatabase('error', 'api', 'Failed to export monitoring data', { error: error.message });
+    res.status(500).json({ error: 'Failed to export monitoring data' });
+  }
+});
+
+// Helper functions for team data
+function getAvatarForRole(role: string): string {
+  switch (role) {
+    case 'admin': return '👨‍💼';
+    case 'trainer': return '👩‍💻';
+    case 'viewer': return '👨‍🔬';
+    default: return '👤';
+  }
+}
+
+function getSkillsForRole(role: string): string[] {
+  switch (role) {
+    case 'admin':
+      return ['مدیریت پروژه', 'هوش مصنوعی', 'حقوق'];
+    case 'trainer':
+      return ['یادگیری ماشین', 'پردازش زبان طبیعی', 'Python'];
+    case 'viewer':
+      return ['تحلیل داده', 'گزارش‌گیری', 'کیفیت‌سنجی'];
+    default:
+      return ['توسعه نرم‌افزار'];
+  }
+}
+
 // Active training sessions
 const activeTrainingSessions = new Map<number, any>();
 

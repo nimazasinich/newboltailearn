@@ -117,6 +117,48 @@ class ApiClient {
   async getAnalytics() {
     return this.request('/analytics');
   }
+
+  async exportAnalytics(format: 'csv' | 'json' = 'csv', timeRange: string = '30d') {
+    const response = await fetch(`${API_BASE_URL}/analytics/export?format=${format}&timeRange=${timeRange}`);
+    
+    if (format === 'csv') {
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `analytics_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } else {
+      return response.json();
+    }
+  }
+
+  // Team API
+  async getTeam() {
+    return this.request('/team');
+  }
+
+  // Monitoring Export API
+  async exportMonitoring(format: 'csv' | 'json' = 'csv', timeRange: string = '24h') {
+    const response = await fetch(`${API_BASE_URL}/monitoring/export?format=${format}&timeRange=${timeRange}`);
+    
+    if (format === 'csv') {
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `monitoring_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } else {
+      return response.json();
+    }
+  }
 }
 
 export const apiClient = new ApiClient();

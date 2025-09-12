@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Cpu, HardDrive, Activity, Clock, Server, Zap, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Cpu, HardDrive, Activity, Clock, Server, Zap, TrendingUp, AlertTriangle, Download, FileText, FileSpreadsheet } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { apiClient, connectSocket, onSystemMetrics, SystemMetrics } from '../services/api';
 
@@ -7,6 +7,8 @@ export function MonitoringPage() {
   const [currentMetrics, setCurrentMetrics] = useState<SystemMetrics | null>(null);
   const [metricsHistory, setMetricsHistory] = useState<SystemMetrics[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [timeRange, setTimeRange] = useState('24h');
 
   useEffect(() => {
     loadInitialMetrics();
@@ -34,6 +36,17 @@ export function MonitoringPage() {
       console.error('Failed to load monitoring data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExport = async (format: 'csv' | 'json') => {
+    try {
+      setExporting(true);
+      await apiClient.exportMonitoring(format, timeRange);
+    } catch (error) {
+      console.error('Failed to export monitoring data:', error);
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -102,12 +115,41 @@ export function MonitoringPage() {
             مانیتورینگ بلادرنگ عملکرد سیستم و منابع
           </p>
         </div>
-        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-800`}>
-          <div className={`w-3 h-3 rounded-full ${
-            health.status === 'healthy' ? 'bg-green-500' :
-            health.status === 'warning' ? 'bg-yellow-500' : 'bg-red-500'
-          } animate-pulse`}></div>
-          <span className={`font-medium ${health.color}`}>{health.label}</span>
+        <div className="flex items-center gap-3">
+          <div className={`flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-800`}>
+            <div className={`w-3 h-3 rounded-full ${
+              health.status === 'healthy' ? 'bg-green-500' :
+              health.status === 'warning' ? 'bg-yellow-500' : 'bg-red-500'
+            } animate-pulse`}></div>
+            <span className={`font-medium ${health.color}`}>{health.label}</span>
+          </div>
+          <select
+            value={timeRange}
+            onChange={(e) => setTimeRange(e.target.value)}
+            className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="1h">۱ ساعت گذشته</option>
+            <option value="24h">۲۴ ساعت گذشته</option>
+            <option value="7d">۷ روز گذشته</option>
+          </select>
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleExport('csv')}
+              disabled={exporting}
+              className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              {exporting ? '...' : 'CSV'}
+            </button>
+            <button
+              onClick={() => handleExport('json')}
+              disabled={exporting}
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-3 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm"
+            >
+              <FileText className="h-4 w-4" />
+              {exporting ? '...' : 'JSON'}
+            </button>
+          </div>
         </div>
       </div>
 

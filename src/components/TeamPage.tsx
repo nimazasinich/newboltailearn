@@ -1,63 +1,111 @@
-import React from 'react';
-import { Users, Mail, Github, Linkedin, Star, Award } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Users, Mail, Github, Linkedin, Star, Award, RefreshCw } from 'lucide-react';
+import { apiClient } from '../services/api';
 
-const teamMembers = [
-  {
-    id: 1,
-    name: 'دکتر علی احمدی',
-    role: 'مدیر پروژه',
-    email: 'ali.ahmadi@legal-ai.ir',
-    avatar: '👨‍💼',
-    skills: ['مدیریت پروژه', 'هوش مصنوعی', 'حقوق'],
-    projects: 15,
-    rating: 4.9
-  },
-  {
-    id: 2,
-    name: 'مریم کریمی',
-    role: 'متخصص هوش مصنوعی',
-    email: 'm.karimi@legal-ai.ir',
-    avatar: '👩‍💻',
-    skills: ['یادگیری ماشین', 'پردازش زبان طبیعی', 'Python'],
-    projects: 12,
-    rating: 4.8
-  },
-  {
-    id: 3,
-    name: 'حسن رضایی',
-    role: 'متخصص حقوق',
-    email: 'h.rezaei@legal-ai.ir',
-    avatar: '⚖️',
-    skills: ['قوانین ایران', 'تحلیل حقوقی', 'مشاوره'],
-    projects: 8,
-    rating: 4.7
-  },
-  {
-    id: 4,
-    name: 'فاطمه موسوی',
-    role: 'توسعه‌دهنده فرانت‌اند',
-    email: 'f.mousavi@legal-ai.ir',
-    avatar: '👩‍🎨',
-    skills: ['React', 'TypeScript', 'UI/UX'],
-    projects: 10,
-    rating: 4.8
-  }
-];
+interface TeamMember {
+  id: number;
+  name: string;
+  role: string;
+  email: string;
+  avatar: string;
+  skills: string[];
+  projects: number;
+  rating: string;
+  lastActive?: string;
+}
+
+interface TeamStats {
+  totalMembers: number;
+  activeMembers: number;
+  totalProjects: number;
+  completedProjects: number;
+  averageRating: string;
+  recentCommits: number;
+}
+
+interface TeamData {
+  members: TeamMember[];
+  stats: TeamStats;
+}
 
 export function TeamPage() {
-  return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="text-center">
-        <div className="flex items-center justify-center gap-3 mb-4">
-          <Users className="h-8 w-8 text-blue-600" />
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            تیم توسعه
-          </h1>
+  const [teamData, setTeamData] = useState<TeamData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadTeamData();
+  }, []);
+
+  const loadTeamData = async () => {
+    try {
+      setLoading(true);
+      const data = await apiClient.getTeam();
+      setTeamData(data);
+    } catch (err) {
+      console.error('Failed to load team data:', err);
+      setError('خطا در بارگذاری اطلاعات تیم');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case 'admin': return 'مدیر پروژه';
+      case 'trainer': return 'متخصص هوش مصنوعی';
+      case 'viewer': return 'تحلیل‌گر داده';
+      default: return role;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error || !teamData) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-red-500 dark:text-red-400 mb-4">
+          {error || 'خطا در بارگذاری اطلاعات تیم'}
         </div>
-        <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-          تیم متخصص ما در زمینه هوش مصنوعی و حقوق برای ارائه بهترین خدمات به شما تلاش می‌کند
-        </p>
+        <button
+          onClick={loadTeamData}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 mx-auto"
+        >
+          <RefreshCw className="h-4 w-4" />
+          تلاش مجدد
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8" dir="rtl">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div className="text-center flex-1">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <Users className="h-8 w-8 text-blue-600" />
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              تیم توسعه
+            </h1>
+          </div>
+          <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+            تیم متخصص ما در زمینه هوش مصنوعی و حقوق برای ارائه بهترین خدمات به شما تلاش می‌کند
+          </p>
+        </div>
+        <button
+          onClick={loadTeamData}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+        >
+          <RefreshCw className="h-4 w-4" />
+          بروزرسانی
+        </button>
       </div>
 
       {/* Team Stats */}
@@ -68,7 +116,7 @@ export function TeamPage() {
               <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">۴</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{teamData.stats.totalMembers}</p>
               <p className="text-sm text-gray-600 dark:text-gray-400">اعضای تیم</p>
             </div>
           </div>
@@ -80,7 +128,7 @@ export function TeamPage() {
               <Award className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">۴۵</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{teamData.stats.completedProjects}</p>
               <p className="text-sm text-gray-600 dark:text-gray-400">پروژه تکمیل شده</p>
             </div>
           </div>
@@ -92,7 +140,7 @@ export function TeamPage() {
               <Star className="h-6 w-6 text-purple-600 dark:text-purple-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">۴.۸</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{teamData.stats.averageRating}</p>
               <p className="text-sm text-gray-600 dark:text-gray-400">میانگین رتبه</p>
             </div>
           </div>
@@ -104,7 +152,7 @@ export function TeamPage() {
               <Github className="h-6 w-6 text-orange-600 dark:text-orange-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">۱۲۰+</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{teamData.stats.recentCommits}+</p>
               <p className="text-sm text-gray-600 dark:text-gray-400">کامیت در ماه</p>
             </div>
           </div>
@@ -113,7 +161,7 @@ export function TeamPage() {
 
       {/* Team Members */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-        {teamMembers.map((member) => (
+        {teamData.members.map((member) => (
           <div key={member.id} className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="flex items-start gap-4">
               {/* Avatar */}
@@ -127,7 +175,7 @@ export function TeamPage() {
                   {member.name}
                 </h3>
                 <p className="text-blue-600 dark:text-blue-400 text-sm mb-2">
-                  {member.role}
+                  {getRoleLabel(member.role)}
                 </p>
                 
                 {/* Contact */}
@@ -153,6 +201,13 @@ export function TeamPage() {
                     </span>
                   </div>
                 </div>
+
+                {/* Last Active */}
+                {member.lastActive && (
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                    آخرین فعالیت: {new Date(member.lastActive).toLocaleDateString('fa-IR')}
+                  </div>
+                )}
 
                 {/* Skills */}
                 <div className="flex flex-wrap gap-2">
