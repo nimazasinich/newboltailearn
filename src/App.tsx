@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Loading } from './components/Loading';
+import { Dashboard } from './components/Dashboard';
 import { LandingPage } from './components/LandingPage';
 import { AppLayout } from './components/layout/AppLayout';
 import { Overview } from './components/dashboard/Overview';
@@ -18,13 +20,30 @@ import { DashboardPage } from './pages/DashboardPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
+function MainApp() {
+  const [showLoading, setShowLoading] = useState(true);
+
+  const handleLoadingComplete = () => {
+    setShowLoading(false);
+  };
+
+  if (showLoading) {
+    return <Loading onComplete={handleLoadingComplete} />;
+  }
+
+  return <Dashboard />;
+}
+
 export default function App() {
   return (
     <Router>
       <ErrorBoundary>
         <Routes>
-          {/* Landing Page */}
-          <Route path="/" element={<LandingPage />} />
+          {/* Main App with Loading → Dashboard flow */}
+          <Route path="/" element={<MainApp />} />
+          
+          {/* Legacy Landing Page */}
+          <Route path="/landing" element={<LandingPage />} />
 
           {/* App Routes with Layout */}
           <Route path="/app" element={<AppLayout />}>
@@ -42,6 +61,9 @@ export default function App() {
             <Route path="training-page" element={<TrainingPage />} />
             <Route path="dashboard-page" element={<DashboardPage />} />
           </Route>
+
+          {/* Direct Dashboard Access */}
+          <Route path="/dashboard" element={<Dashboard />} />
 
           {/* 404 Page */}
           <Route path="*" element={<NotFoundPage />} />
