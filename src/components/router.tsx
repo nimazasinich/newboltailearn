@@ -2,7 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Dashboard } from './Dashboard';
 import { Overview } from './dashboard/Overview';
-import { TrainingManagement } from './dashboard/TrainingManagement';
+import { TrainingControlPanel } from './TrainingControlPanel';
 import { AnalyticsPage } from './AnalyticsPage';
 import { DataPage } from './DataPage';
 import { ModelsPage } from './ModelsPage';
@@ -20,7 +20,7 @@ export function AppRoutes() {
       <Route path="/app" element={<Dashboard />}>
         <Route index element={<Navigate to="/app/dashboard" replace />} />
         <Route path="dashboard" element={<Overview />} />
-        <Route path="training" element={<TrainingManagement />} />
+        <Route path="training" element={<TrainingControlPanel />} />
         <Route path="monitoring" element={<MonitoringPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="models" element={<ModelsPage />} />

@@ -161,19 +161,82 @@ const logToDatabase = (level: string, category: string, message: string, metadat
   stmt.run(level, category, message, metadata ? JSON.stringify(metadata) : null);
 };
 
-const getSystemMetrics = () => {
+const getSystemMetrics = async () => {
   const memUsage = process.memoryUsage();
+  const os = await import('os');
+  
+  // Get CPU usage (simplified)
+  const cpuUsage = await getCPUUsage();
+  
+  // Get system memory
+  const totalMem = os.totalmem();
+  const freeMem = os.freemem();
+  const usedMem = totalMem - freeMem;
+  
   return {
-    cpu: Math.random() * 100, // Placeholder - would use actual CPU monitoring
+    cpu: cpuUsage,
     memory: {
+      used: Math.round(usedMem / 1024 / 1024),
+      total: Math.round(totalMem / 1024 / 1024),
+      percentage: Math.round((usedMem / totalMem) * 100)
+    },
+    process_memory: {
       used: Math.round(memUsage.heapUsed / 1024 / 1024),
       total: Math.round(memUsage.heapTotal / 1024 / 1024),
       percentage: Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100)
     },
     uptime: Math.floor(process.uptime()),
-    timestamp: new Date().toISOString()
+    system_uptime: Math.floor(os.uptime()),
+    platform: os.platform(),
+    arch: os.arch(),
+    timestamp: new Date().toISOString(),
+    active_training: activeTrainingSessions.size
   };
 };
+
+// CPU usage calculation
+async function getCPUUsage(): Promise<number> {
+  const os = await import('os');
+  
+  return new Promise((resolve) => {
+    const cpus = os.cpus();
+    
+    let totalIdle = 0;
+    let totalTick = 0;
+    
+    cpus.forEach(cpu => {
+      for (const type in cpu.times) {
+        totalTick += cpu.times[type];
+      }
+      totalIdle += cpu.times.idle;
+    });
+    
+    const idle = totalIdle / cpus.length;
+    const total = totalTick / cpus.length;
+    
+    setTimeout(() => {
+      const cpus2 = os.cpus();
+      let totalIdle2 = 0;
+      let totalTick2 = 0;
+      
+      cpus2.forEach(cpu => {
+        for (const type in cpu.times) {
+          totalTick2 += cpu.times[type];
+        }
+        totalIdle2 += cpu.times.idle;
+      });
+      
+      const idle2 = totalIdle2 / cpus2.length;
+      const total2 = totalTick2 / cpus2.length;
+      
+      const idleDelta = idle2 - idle;
+      const totalDelta = total2 - total;
+      
+      const usage = 100 - ~~(100 * idleDelta / totalDelta);
+      resolve(Math.max(0, Math.min(100, usage)));
+    }, 100);
+  });
+}
 
 // API Routes
 
@@ -273,10 +336,20 @@ app.delete('/api/models/:id', (req, res) => {
 });
 
 // Training endpoints
-app.post('/api/models/:id/train', (req, res) => {
+app.post('/api/models/:id/train', async (req, res) => {
   try {
     const { id } = req.params;
-    const { epochs = 10, batch_size = 32, learning_rate = 0.001 } = req.body;
+    const { epochs = 10, batch_size = 32, learning_rate = 0.001, dataset_ids = [] } = req.body;
+    
+    const model = db.prepare('SELECT * FROM models WHERE id = ?').get(id) as any;
+    if (!model) {
+      return res.status(404).json({ error: 'Model not found' });
+    }
+    
+    // Check if model is already training
+    if (model.status === 'training') {
+      return res.status(400).json({ error: 'Model is already training' });
+    }
     
     // Update model status
     db.prepare('UPDATE models SET status = ?, current_epoch = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
@@ -290,8 +363,13 @@ app.post('/api/models/:id/train', (req, res) => {
     
     logToDatabase('info', 'training', `Started training model ${id}`, { epochs, batch_size, learning_rate });
     
-    // Simulate training progress
-    simulateTraining(parseInt(id), epochs);
+    // Start real training process
+    startRealTraining(parseInt(id), model, {
+      epochs,
+      batch_size,
+      learning_rate,
+      dataset_ids: dataset_ids.length > 0 ? dataset_ids : ['iran-legal-qa', 'legal-laws']
+    });
     
     res.json({ message: 'Training started successfully' });
   } catch (error) {
@@ -303,11 +381,26 @@ app.post('/api/models/:id/train', (req, res) => {
 app.post('/api/models/:id/pause', (req, res) => {
   try {
     const { id } = req.params;
+    const modelId = parseInt(id);
+    
+    // Stop the active training session
+    const trainingEngine = activeTrainingSessions.get(modelId);
+    if (trainingEngine) {
+      trainingEngine.stopTraining();
+    }
     
     db.prepare('UPDATE models SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
       .run('paused', id);
     
+    db.prepare(`
+      INSERT INTO training_logs (model_id, level, message, epoch)
+      VALUES (?, 'info', 'Training paused by user', 0)
+    `).run(id);
+    
     logToDatabase('info', 'training', `Paused training model ${id}`);
+    
+    io.emit('training_paused', { modelId });
+    
     res.json({ message: 'Training paused successfully' });
   } catch (error) {
     logToDatabase('error', 'api', 'Failed to pause training', { error: error.message });
@@ -315,14 +408,41 @@ app.post('/api/models/:id/pause', (req, res) => {
   }
 });
 
-app.post('/api/models/:id/resume', (req, res) => {
+app.post('/api/models/:id/resume', async (req, res) => {
   try {
     const { id } = req.params;
+    const model = db.prepare('SELECT * FROM models WHERE id = ?').get(id) as any;
+    
+    if (!model) {
+      return res.status(404).json({ error: 'Model not found' });
+    }
+    
+    if (model.status !== 'paused') {
+      return res.status(400).json({ error: 'Model is not paused' });
+    }
     
     db.prepare('UPDATE models SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
       .run('training', id);
     
+    db.prepare(`
+      INSERT INTO training_logs (model_id, level, message, epoch)
+      VALUES (?, 'info', 'Training resumed by user', ?)
+    `).run(id, model.current_epoch || 0);
+    
     logToDatabase('info', 'training', `Resumed training model ${id}`);
+    
+    // Restart training from current epoch
+    const config = JSON.parse(model.config || '{}');
+    startRealTraining(parseInt(id), model, {
+      epochs: model.epochs,
+      batch_size: config.batchSize || 32,
+      learning_rate: config.learningRate || 0.001,
+      dataset_ids: config.dataset_ids || ['iran-legal-qa', 'legal-laws'],
+      resume_from_epoch: model.current_epoch || 0
+    });
+    
+    io.emit('training_resumed', { modelId: parseInt(id) });
+    
     res.json({ message: 'Training resumed successfully' });
   } catch (error) {
     logToDatabase('error', 'api', 'Failed to resume training', { error: error.message });
@@ -344,7 +464,7 @@ app.get('/api/datasets', (req, res) => {
 app.post('/api/datasets/:id/download', async (req, res) => {
   try {
     const { id } = req.params;
-    const dataset = db.prepare('SELECT * FROM datasets WHERE id = ?').get(id);
+    const dataset = db.prepare('SELECT * FROM datasets WHERE id = ?').get(id) as any;
     
     if (!dataset) {
       return res.status(404).json({ error: 'Dataset not found' });
@@ -354,16 +474,10 @@ app.post('/api/datasets/:id/download', async (req, res) => {
     db.prepare('UPDATE datasets SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
       .run('downloading', id);
     
-    // Simulate download process
-    setTimeout(() => {
-      db.prepare('UPDATE datasets SET status = ?, local_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-        .run('available', `./datasets/${id}`, id);
-      
-      logToDatabase('info', 'datasets', `Downloaded dataset ${dataset.name}`);
-      
-      // Emit update via WebSocket
-      io.emit('dataset_updated', { id, status: 'available' });
-    }, 3000);
+    logToDatabase('info', 'datasets', `Starting download of dataset ${dataset.name}`);
+    
+    // Start real download process
+    downloadDatasetFromHuggingFace(dataset, id);
     
     res.json({ message: 'Dataset download started' });
   } catch (error) {
@@ -371,6 +485,130 @@ app.post('/api/datasets/:id/download', async (req, res) => {
     res.status(500).json({ error: 'Failed to download dataset' });
   }
 });
+
+// Real HuggingFace dataset download function
+async function downloadDatasetFromHuggingFace(dataset: any, id: string) {
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+    
+    // Create datasets directory if it doesn't exist
+    const datasetsDir = './datasets';
+    if (!fs.existsSync(datasetsDir)) {
+      fs.mkdirSync(datasetsDir, { recursive: true });
+    }
+    
+    const datasetPath = path.join(datasetsDir, id);
+    if (!fs.existsSync(datasetPath)) {
+      fs.mkdirSync(datasetPath, { recursive: true });
+    }
+    
+    // Download dataset using HuggingFace API
+    const baseUrl = 'https://datasets-server.huggingface.co';
+    let allData: any[] = [];
+    let offset = 0;
+    const batchSize = 1000;
+    let hasMore = true;
+    
+    while (hasMore) {
+      try {
+        const url = `${baseUrl}/rows?dataset=${dataset.huggingface_id}&config=default&split=train&offset=${offset}&length=${batchSize}`;
+        
+        const response = await fetch(url, {
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'Persian-Legal-AI/1.0'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (!data.rows || data.rows.length === 0) {
+          hasMore = false;
+          break;
+        }
+        
+        allData.push(...data.rows);
+        offset += batchSize;
+        
+        // Update progress
+        io.emit('dataset_download_progress', {
+          id,
+          downloaded: allData.length,
+          total: data.num_rows_total || dataset.samples
+        });
+        
+        // Limit total samples to prevent excessive downloads
+        if (allData.length >= 10000) {
+          hasMore = false;
+        }
+        
+        // Add delay to respect rate limits
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+      } catch (fetchError) {
+        console.error(`Error fetching batch at offset ${offset}:`, fetchError);
+        hasMore = false;
+      }
+    }
+    
+    if (allData.length === 0) {
+      throw new Error('No data downloaded');
+    }
+    
+    // Save data to JSON file
+    const dataFile = path.join(datasetPath, 'data.json');
+    fs.writeFileSync(dataFile, JSON.stringify(allData, null, 2));
+    
+    // Create metadata file
+    const metadataFile = path.join(datasetPath, 'metadata.json');
+    const metadata = {
+      id: dataset.id,
+      name: dataset.name,
+      huggingface_id: dataset.huggingface_id,
+      samples: allData.length,
+      downloadedAt: new Date().toISOString(),
+      structure: allData.length > 0 ? Object.keys(allData[0].row || {}) : []
+    };
+    fs.writeFileSync(metadataFile, JSON.stringify(metadata, null, 2));
+    
+    // Update database
+    db.prepare(`
+      UPDATE datasets 
+      SET status = 'available', 
+          local_path = ?, 
+          samples = ?,
+          updated_at = CURRENT_TIMESTAMP 
+      WHERE id = ?
+    `).run(datasetPath, allData.length, id);
+    
+    logToDatabase('info', 'datasets', `Successfully downloaded dataset ${dataset.name}`, {
+      samples: allData.length,
+      path: datasetPath
+    });
+    
+    // Emit completion via WebSocket
+    io.emit('dataset_updated', { id, status: 'available', samples: allData.length });
+    
+  } catch (error) {
+    console.error(`Dataset download failed for ${id}:`, error);
+    
+    // Update status to error
+    db.prepare('UPDATE datasets SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .run('error', id);
+    
+    logToDatabase('error', 'datasets', `Failed to download dataset ${dataset.name}`, {
+      error: error.message
+    });
+    
+    // Emit error via WebSocket
+    io.emit('dataset_updated', { id, status: 'error', error: error.message });
+  }
+}
 
 // Logs endpoints
 app.get('/api/logs', (req, res) => {
@@ -407,20 +645,46 @@ app.get('/api/logs', (req, res) => {
 });
 
 // Monitoring endpoints
-app.get('/api/monitoring', (req, res) => {
+app.get('/api/monitoring', async (req, res) => {
   try {
-    const metrics = getSystemMetrics();
+    const metrics = await getSystemMetrics();
     
     // Get training status
-    const trainingModels = db.prepare("SELECT COUNT(*) as count FROM models WHERE status = 'training'").get();
-    const totalModels = db.prepare('SELECT COUNT(*) as count FROM models').get();
+    const trainingModels = db.prepare("SELECT COUNT(*) as count FROM models WHERE status = 'training'").get() as any;
+    const totalModels = db.prepare('SELECT COUNT(*) as count FROM models').get() as any;
+    const completedModels = db.prepare("SELECT COUNT(*) as count FROM models WHERE status = 'completed'").get() as any;
+    const failedModels = db.prepare("SELECT COUNT(*) as count FROM models WHERE status = 'failed'").get() as any;
+    
+    // Get dataset status
+    const availableDatasets = db.prepare("SELECT COUNT(*) as count FROM datasets WHERE status = 'available'").get() as any;
+    const downloadingDatasets = db.prepare("SELECT COUNT(*) as count FROM datasets WHERE status = 'downloading'").get() as any;
+    
+    // Get recent activity
+    const recentLogs = db.prepare(`
+      SELECT level, COUNT(*) as count 
+      FROM system_logs 
+      WHERE timestamp >= datetime('now', '-1 hour')
+      GROUP BY level
+    `).all() as any[];
     
     res.json({
       ...metrics,
       training: {
         active: trainingModels.count,
-        total: totalModels.count
-      }
+        total: totalModels.count,
+        completed: completedModels.count,
+        failed: failedModels.count,
+        success_rate: totalModels.count > 0 ? (completedModels.count / totalModels.count * 100).toFixed(1) : '0'
+      },
+      datasets: {
+        available: availableDatasets.count,
+        downloading: downloadingDatasets.count,
+        total: availableDatasets.count + downloadingDatasets.count
+      },
+      activity: recentLogs.reduce((acc: any, log: any) => {
+        acc[log.level] = log.count;
+        return acc;
+      }, {} as any)
     });
   } catch (error) {
     logToDatabase('error', 'api', 'Failed to fetch monitoring data', { error: error.message });
@@ -431,8 +695,8 @@ app.get('/api/monitoring', (req, res) => {
 // Settings endpoints
 app.get('/api/settings', (req, res) => {
   try {
-    const settings = db.prepare('SELECT * FROM system_settings ORDER BY key').all();
-    const settingsObj = settings.reduce((acc, setting) => {
+    const settings = db.prepare('SELECT * FROM system_settings ORDER BY key').all() as any[];
+    const settingsObj = settings.reduce((acc: any, setting: any) => {
       acc[setting.key] = {
         value: setting.value,
         description: setting.description,
@@ -504,10 +768,10 @@ app.get('/api/analytics', (req, res) => {
       trainingStats,
       recentActivity,
       summary: {
-        totalModels: db.prepare('SELECT COUNT(*) as count FROM models').get().count,
-        activeTraining: db.prepare("SELECT COUNT(*) as count FROM models WHERE status = 'training'").get().count,
-        completedModels: db.prepare("SELECT COUNT(*) as count FROM models WHERE status = 'completed'").get().count,
-        totalDatasets: db.prepare('SELECT COUNT(*) as count FROM datasets').get().count
+        totalModels: (db.prepare('SELECT COUNT(*) as count FROM models').get() as any).count,
+        activeTraining: (db.prepare("SELECT COUNT(*) as count FROM models WHERE status = 'training'").get() as any).count,
+        completedModels: (db.prepare("SELECT COUNT(*) as count FROM models WHERE status = 'completed'").get() as any).count,
+        totalDatasets: (db.prepare('SELECT COUNT(*) as count FROM datasets').get() as any).count
       }
     });
   } catch (error) {
@@ -516,53 +780,213 @@ app.get('/api/analytics', (req, res) => {
   }
 });
 
-// Training simulation function
-function simulateTraining(modelId: number, totalEpochs: number) {
-  let currentEpoch = 0;
-  let currentLoss = 2.5;
-  let currentAccuracy = 0.1;
-  
-  const trainingInterval = setInterval(() => {
-    currentEpoch++;
-    currentLoss = Math.max(0.1, currentLoss * (0.95 + Math.random() * 0.1));
-    currentAccuracy = Math.min(0.95, currentAccuracy + (Math.random() * 0.05));
+// Active training sessions
+const activeTrainingSessions = new Map<number, any>();
+
+// Real training function using TensorFlow.js
+async function startRealTraining(modelId: number, model: any, config: any) {
+  try {
+    // Import training engine dynamically
+    const { RealTrainingEngine } = await import('../src/services/training/RealTrainingEngine');
     
-    // Update model
-    db.prepare(`
-      UPDATE models 
-      SET current_epoch = ?, loss = ?, accuracy = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).run(currentEpoch, currentLoss, currentAccuracy, modelId);
+    const trainingEngine = new RealTrainingEngine();
+    activeTrainingSessions.set(modelId, trainingEngine);
     
-    // Log progress
-    db.prepare(`
-      INSERT INTO training_logs (model_id, level, message, epoch, loss, accuracy)
-      VALUES (?, 'info', ?, ?, ?, ?)
-    `).run(modelId, `Epoch ${currentEpoch}/${totalEpochs} completed`, currentEpoch, currentLoss, currentAccuracy);
+    // Load datasets
+    const datasets = await loadTrainingDatasets(config.dataset_ids);
     
-    // Emit progress via WebSocket
-    io.emit('training_progress', {
-      modelId,
-      epoch: currentEpoch,
-      totalEpochs,
-      loss: currentLoss,
-      accuracy: currentAccuracy
+    if (!datasets || datasets.length === 0) {
+      throw new Error('No datasets available for training');
+    }
+    
+    // Configure training based on model type
+    const trainingConfig = {
+      modelType: model.type as 'dora' | 'qr-adaptor' | 'persian-bert',
+      datasets: config.dataset_ids,
+      epochs: config.epochs,
+      batchSize: config.batch_size,
+      learningRate: config.learning_rate,
+      validationSplit: 0.2,
+      maxSequenceLength: 512,
+      vocabSize: 30000
+    };
+    
+    // Training callbacks
+    const callbacks = {
+      onProgress: (progress: any) => {
+        // Update database
+        db.prepare(`
+          UPDATE models 
+          SET current_epoch = ?, loss = ?, accuracy = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).run(progress.currentEpoch, 
+               progress.trainingLoss[progress.trainingLoss.length - 1] || 0,
+               progress.validationAccuracy[progress.validationAccuracy.length - 1] || 0,
+               modelId);
+        
+        // Log progress
+        db.prepare(`
+          INSERT INTO training_logs (model_id, level, message, epoch, loss, accuracy)
+          VALUES (?, 'info', ?, ?, ?, ?)
+        `).run(modelId, 
+               `Epoch ${progress.currentEpoch}/${progress.totalEpochs} completed`,
+               progress.currentEpoch,
+               progress.trainingLoss[progress.trainingLoss.length - 1] || 0,
+               progress.validationAccuracy[progress.validationAccuracy.length - 1] || 0);
+        
+        // Emit progress via WebSocket
+        io.emit('training_progress', {
+          modelId,
+          epoch: progress.currentEpoch,
+          totalEpochs: progress.totalEpochs,
+          loss: progress.trainingLoss[progress.trainingLoss.length - 1] || 0,
+          accuracy: progress.validationAccuracy[progress.validationAccuracy.length - 1] || 0,
+          step: progress.currentStep,
+          totalSteps: progress.totalSteps,
+          completionPercentage: progress.completionPercentage,
+          estimatedTimeRemaining: progress.estimatedTimeRemaining
+        });
+      },
+      
+      onMetrics: (metrics: any) => {
+        // Emit real-time metrics
+        io.emit('training_metrics', {
+          modelId,
+          ...metrics
+        });
+      },
+      
+      onComplete: (trainedModel: any) => {
+        // Training completed
+        db.prepare('UPDATE models SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+          .run('completed', modelId);
+        
+        db.prepare(`
+          INSERT INTO training_logs (model_id, level, message, epoch)
+          VALUES (?, 'info', 'Training completed successfully', ?)
+        `).run(modelId, config.epochs);
+        
+        logToDatabase('info', 'training', `Model ${modelId} training completed successfully`);
+        
+        // Save model checkpoint
+        saveModelCheckpoint(modelId, trainedModel, config.epochs);
+        
+        // Cleanup
+        activeTrainingSessions.delete(modelId);
+        trainingEngine.dispose();
+        
+        io.emit('training_completed', { modelId });
+      },
+      
+      onError: (error: string) => {
+        // Training failed
+        db.prepare('UPDATE models SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+          .run('failed', modelId);
+        
+        db.prepare(`
+          INSERT INTO training_logs (model_id, level, message, epoch)
+          VALUES (?, 'error', ?, 0)
+        `).run(modelId, `Training failed: ${error}`);
+        
+        logToDatabase('error', 'training', `Model ${modelId} training failed`, { error });
+        
+        // Cleanup
+        activeTrainingSessions.delete(modelId);
+        trainingEngine.dispose();
+        
+        io.emit('training_failed', { modelId, error });
+      }
+    };
+    
+    // Start training
+    await trainingEngine.startTraining(trainingConfig, callbacks);
+    
+  } catch (error) {
+    console.error(`Training failed for model ${modelId}:`, error);
+    
+    // Update status to failed
+    db.prepare('UPDATE models SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .run('failed', modelId);
+    
+    logToDatabase('error', 'training', `Failed to start training for model ${modelId}`, {
+      error: error.message
     });
     
-    if (currentEpoch >= totalEpochs) {
-      // Training completed
-      db.prepare('UPDATE models SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-        .run('completed', modelId);
+    // Cleanup
+    activeTrainingSessions.delete(modelId);
+    
+    io.emit('training_failed', { modelId, error: error.message });
+  }
+}
+
+// Load training datasets from local files
+async function loadTrainingDatasets(datasetIds: string[]) {
+  const fs = await import('fs');
+  const path = await import('path');
+  
+  const datasets = [];
+  
+  for (const datasetId of datasetIds) {
+    try {
+      const datasetPath = path.join('./datasets', datasetId, 'data.json');
       
-      db.prepare(`
-        INSERT INTO training_logs (model_id, level, message, epoch)
-        VALUES (?, 'info', 'Training completed successfully', ?)
-      `).run(modelId, currentEpoch);
-      
-      io.emit('training_completed', { modelId });
-      clearInterval(trainingInterval);
+      if (fs.existsSync(datasetPath)) {
+        const data = JSON.parse(fs.readFileSync(datasetPath, 'utf8'));
+        datasets.push({
+          id: datasetId,
+          data: data.slice(0, 1000) // Limit for training performance
+        });
+        
+        logToDatabase('info', 'training', `Loaded dataset ${datasetId}`, {
+          samples: data.length
+        });
+      } else {
+        logToDatabase('warning', 'training', `Dataset ${datasetId} not found locally`);
+      }
+    } catch (error) {
+      logToDatabase('error', 'training', `Failed to load dataset ${datasetId}`, {
+        error: error.message
+      });
     }
-  }, 2000); // Update every 2 seconds
+  }
+  
+  return datasets;
+}
+
+// Save model checkpoint
+async function saveModelCheckpoint(modelId: number, model: any, epoch: number) {
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+    
+    // Create checkpoints directory
+    const checkpointsDir = './checkpoints';
+    if (!fs.existsSync(checkpointsDir)) {
+      fs.mkdirSync(checkpointsDir, { recursive: true });
+    }
+    
+    const checkpointPath = path.join(checkpointsDir, `model_${modelId}_epoch_${epoch}.json`);
+    
+    // Save model state (simplified - in production would save actual model weights)
+    const checkpoint = {
+      modelId,
+      epoch,
+      timestamp: new Date().toISOString(),
+      modelType: 'checkpoint',
+      // model: await model.save() // Would save actual TensorFlow.js model
+    };
+    
+    fs.writeFileSync(checkpointPath, JSON.stringify(checkpoint, null, 2));
+    
+    logToDatabase('info', 'training', `Saved checkpoint for model ${modelId} at epoch ${epoch}`, {
+      path: checkpointPath
+    });
+    
+  } catch (error) {
+    logToDatabase('error', 'training', `Failed to save checkpoint for model ${modelId}`, {
+      error: error.message
+    });
+  }
 }
 
 // WebSocket connection handling
@@ -574,12 +998,21 @@ io.on('connection', (socket) => {
   });
   
   // Send initial system metrics
-  socket.emit('system_metrics', getSystemMetrics());
+  getSystemMetrics().then(metrics => {
+    socket.emit('system_metrics', metrics);
+  }).catch(error => {
+    console.error('Failed to get initial system metrics:', error);
+  });
 });
 
 // Send system metrics every 5 seconds
-setInterval(() => {
-  io.emit('system_metrics', getSystemMetrics());
+setInterval(async () => {
+  try {
+    const metrics = await getSystemMetrics();
+    io.emit('system_metrics', metrics);
+  } catch (error) {
+    console.error('Failed to get system metrics:', error);
+  }
 }, 5000);
 
 // Error handling middleware

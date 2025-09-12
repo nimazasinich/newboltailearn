@@ -12,41 +12,43 @@ import {
   CheckCircle,
   AlertCircle,
   Cpu,
-  HardDrive
+  HardDrive,
+  Database,
+  Zap
 } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
-import { useTraining } from '../../hooks/useTraining';
-import { useDocuments } from '../../hooks/useDocuments';
-import { db } from '../../services/database';
-import { SystemMetrics } from '../../types/training';
-import { formatPersianDate, formatPersianDuration, formatPersianPercentage } from '../../services/persian/PersianUtils';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { 
+  apiClient, 
+  onSystemMetrics, 
+  onTrainingProgress, 
+  onTrainingCompleted,
+  SystemMetrics 
+} from '../../services/api';
+import { formatPersianDate, formatPersianDuration, formatPersianPercentage } from '../../services/PersianUtils';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 
 export function Overview() {
-  const { user } = useAuth();
-  const { trainingSessions, getTrainingStatistics } = useTraining();
-  const { documents, getDocumentStatistics } = useDocuments();
   const [systemMetrics, setSystemMetrics] = useState<SystemMetrics | null>(null);
-  const [trainingStats, setTrainingStats] = useState<any>(null);
-  const [documentStats, setDocumentStats] = useState<any>(null);
+  const [models, setModels] = useState<any[]>([]);
+  const [datasets, setDatasets] = useState<any[]>([]);
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [monitoring, setMonitoring] = useState<any>(null);
+  const [trainingProgress, setTrainingProgress] = useState<Map<number, any>>(new Map());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Load system metrics
-        const metrics = await db.getSystemMetrics();
-        if (metrics) {
-          setSystemMetrics(metrics);
-        }
-
-        // Load training statistics
-        const tStats = await getTrainingStatistics();
-        setTrainingStats(tStats);
-
-        // Load document statistics
-        const dStats = await getDocumentStatistics();
-        setDocumentStats(dStats);
+        const [modelsData, datasetsData, analyticsData, monitoringData] = await Promise.all([
+          apiClient.getModels(),
+          apiClient.getDatasets(), 
+          apiClient.getAnalytics(),
+          apiClient.getMonitoring()
+        ]);
+        
+        setModels(modelsData);
+        setDatasets(datasetsData);
+        setAnalytics(analyticsData);
+        setMonitoring(monitoringData);
       } catch (error) {
         console.error('Error loading overview data:', error);
       } finally {
@@ -56,38 +58,40 @@ export function Overview() {
 
     loadData();
     
-    // Update metrics every 30 seconds
+    // Update data every 30 seconds
     const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
-  }, [getTrainingStatistics, getDocumentStatistics]);
+  }, []);
 
-  // Simulate real-time system metrics
+  // WebSocket listeners for real-time updates
   useEffect(() => {
-    const updateSystemMetrics = async () => {
-      const activeSessions = trainingSessions.filter(s => s.status === 'running').length;
-      const totalDocs = documents.length;
+    const unsubscribeMetrics = onSystemMetrics((metrics) => {
+      setSystemMetrics(metrics);
+    });
 
-      await db.updateSystemMetrics({
-        cpuUsage: Math.min(95, 10 + (activeSessions * 20) + Math.random() * 10),
-        memoryUsage: Math.min(90, 15 + (activeSessions * 15) + Math.random() * 8),
-        storageUsage: Math.min(80, 20 + (totalDocs * 0.1)),
-        networkUsage: Math.random() * 15 + 5,
-        activeTrainingSessions: activeSessions,
-        totalDocuments: totalDocs,
-        systemHealth: activeSessions > 3 ? 'fair' : activeSessions > 0 ? 'good' : 'excellent',
-        uptime: Date.now() - (new Date().getTime() - 24 * 60 * 60 * 1000) // 24 hours uptime
+    const unsubscribeProgress = onTrainingProgress((data) => {
+      setTrainingProgress(prev => new Map(prev.set(data.modelId, data)));
+    });
+
+    const unsubscribeCompleted = onTrainingCompleted((data) => {
+      setTrainingProgress(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(data.modelId);
+        return newMap;
       });
+      // Reload data to get updated model status
+      setTimeout(() => {
+        apiClient.getModels().then(setModels).catch(console.error);
+        apiClient.getAnalytics().then(setAnalytics).catch(console.error);
+      }, 1000);
+    });
 
-      const updatedMetrics = await db.getSystemMetrics();
-      if (updatedMetrics) {
-        setSystemMetrics(updatedMetrics);
-      }
+    return () => {
+      unsubscribeMetrics();
+      unsubscribeProgress();
+      unsubscribeCompleted();
     };
-
-    updateSystemMetrics();
-    const interval = setInterval(updateSystemMetrics, 5000);
-    return () => clearInterval(interval);
-  }, [trainingSessions, documents]);
+  }, []);
 
   const getHealthColor = (health: string) => {
     switch (health) {
@@ -109,27 +113,34 @@ export function Overview() {
     }
   };
 
-  // Sample data for charts
-  const trainingProgressData = [
-    { name: 'فروردین', sessions: 12, accuracy: 0.75 },
-    { name: 'اردیبهشت', sessions: 19, accuracy: 0.82 },
-    { name: 'خرداد', sessions: 15, accuracy: 0.78 },
-    { name: 'تیر', sessions: 22, accuracy: 0.85 },
-    { name: 'مرداد', sessions: 18, accuracy: 0.88 },
-    { name: 'شهریور', sessions: 25, accuracy: 0.91 }
-  ];
+  // Process analytics data for charts
+  const trainingProgressData = analytics?.trainingStats || [];
+  
+  const modelPerformanceData = analytics?.modelStats?.map((stat: any) => ({
+    name: stat.type === 'dora' ? 'DoRA' : 
+          stat.type === 'qr-adaptor' ? 'QR-Adaptor' : 
+          stat.type === 'persian-bert' ? 'Persian BERT' : stat.type,
+    performance: Math.round(stat.avg_accuracy * 100),
+    sessions: stat.count,
+    max_accuracy: Math.round(stat.max_accuracy * 100)
+  })) || [];
 
-  const modelPerformanceData = [
-    { name: 'DoRA', performance: 92, sessions: 45 },
-    { name: 'QR-Adaptor', performance: 88, sessions: 38 },
-    { name: 'Persian BERT', performance: 94, sessions: 52 }
-  ];
+  const systemHealthData = systemMetrics ? [
+    { name: 'CPU', value: systemMetrics.cpu, color: '#3B82F6' },
+    { name: 'Memory', value: systemMetrics.memory.percentage, color: '#10B981' },
+    { name: 'Active Training', value: (monitoring?.training?.active || 0) * 10, color: '#8B5CF6' }
+  ] : [];
 
-  const documentCategoryData = documentStats ? Object.entries(documentStats.categoryStats).map(([category, count]) => ({
-    name: category,
-    value: count as number,
-    fill: `hsl(${Math.random() * 360}, 70%, 50%)`
-  })) : [];
+  const getSystemHealthLevel = () => {
+    if (!systemMetrics) return 'good';
+    const cpu = systemMetrics.cpu;
+    const memory = systemMetrics.memory.percentage;
+    
+    if (cpu > 90 || memory > 90) return 'poor';
+    if (cpu > 70 || memory > 70) return 'fair';
+    if (cpu > 50 || memory > 50) return 'good';
+    return 'excellent';
+  };
 
   if (loading) {
     return (
@@ -151,10 +162,10 @@ export function Overview() {
       {/* Welcome Section */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          خوش آمدید، {user?.name || 'کاربر گرامی'}
+          داشبورد سیستم آموزش هوش مصنوعی
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
-          آخرین بروزرسانی: {systemMetrics ? formatPersianDate(systemMetrics.lastUpdate, true) : 'در حال بارگذاری...'}
+          آخرین بروزرسانی: {systemMetrics ? new Date(systemMetrics.timestamp).toLocaleString('fa-IR') : 'در حال بارگذاری...'}
         </p>
       </div>
 
@@ -169,12 +180,12 @@ export function Overview() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-              <Badge variant={getHealthColor(systemMetrics?.systemHealth || 'good')}>
-                {getHealthText(systemMetrics?.systemHealth || 'good')}
+              <Badge variant={getHealthColor(getSystemHealthLevel())}>
+                {getHealthText(getSystemHealthLevel())}
               </Badge>
             </div>
             <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
-              آپ‌تایم: {systemMetrics ? formatPersianDuration(systemMetrics.uptime) : '---'}
+              آپ‌تایم: {systemMetrics ? formatPersianDuration(systemMetrics.uptime * 1000) : '---'}
             </p>
           </CardContent>
         </Card>
@@ -188,10 +199,10 @@ export function Overview() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-900 dark:text-green-100">
-              {systemMetrics?.activeTrainingSessions || 0}
+              {monitoring?.training?.active || 0}
             </div>
             <p className="text-xs text-green-600 dark:text-green-400 mt-2">
-              کل جلسات: {trainingStats?.totalSessions || 0}
+              کل مدل‌ها: {monitoring?.training?.total || 0}
             </p>
           </CardContent>
         </Card>
@@ -199,16 +210,16 @@ export function Overview() {
         <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-purple-700 dark:text-purple-300">
-              اسناد پردازش شده
+              دیتاست‌ها
             </CardTitle>
-            <FileText className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+            <Database className="h-4 w-4 text-purple-600 dark:text-purple-400" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-900 dark:text-purple-100">
-              {systemMetrics?.totalDocuments || 0}
+              {monitoring?.datasets?.available || 0}
             </div>
             <p className="text-xs text-purple-600 dark:text-purple-400 mt-2">
-              کل کلمات: {documentStats?.totalWords.toLocaleString('fa-IR') || '---'}
+              کل دیتاست: {monitoring?.datasets?.total || 0}
             </p>
           </CardContent>
         </Card>
@@ -222,10 +233,14 @@ export function Overview() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-900 dark:text-orange-100">
-              {formatPersianPercentage((trainingStats?.bestAccuracy || 0) * 100, 1)}
+              {formatPersianPercentage(
+                analytics?.modelStats?.length > 0 
+                  ? Math.max(...analytics.modelStats.map((stat: any) => stat.max_accuracy)) * 100 
+                  : 0, 1
+              )}
             </div>
             <p className="text-xs text-orange-600 dark:text-orange-400 mt-2">
-              متوسط: {formatPersianPercentage((trainingStats?.averageAccuracy || 0) * 100, 1)}
+              نرخ موفقیت: {monitoring?.training?.success_rate || '0'}%
             </p>
           </CardContent>
         </Card>
@@ -245,12 +260,12 @@ export function Overview() {
               <div className="flex justify-between mb-3">
                 <span className="text-base font-medium text-gray-600 dark:text-gray-400">CPU</span>
                 <span className="text-base font-bold">
-                  {formatPersianPercentage(systemMetrics?.cpuUsage || 0, 0)}
+                  {formatPersianPercentage(systemMetrics?.cpu || 0, 0)}
                 </span>
               </div>
               <Progress 
-                value={systemMetrics?.cpuUsage || 0} 
-                variant={systemMetrics?.cpuUsage && systemMetrics.cpuUsage > 80 ? 'danger' : systemMetrics?.cpuUsage && systemMetrics.cpuUsage > 60 ? 'warning' : 'default'}
+                value={systemMetrics?.cpu || 0} 
+                className={systemMetrics?.cpu && systemMetrics.cpu > 80 ? 'bg-red-200' : systemMetrics?.cpu && systemMetrics.cpu > 60 ? 'bg-yellow-200' : 'bg-blue-200'}
               />
             </div>
             
@@ -258,36 +273,39 @@ export function Overview() {
               <div className="flex justify-between mb-3">
                 <span className="text-base font-medium text-gray-600 dark:text-gray-400">حافظه</span>
                 <span className="text-base font-bold">
-                  {formatPersianPercentage(systemMetrics?.memoryUsage || 0, 0)}
+                  {formatPersianPercentage(systemMetrics?.memory?.percentage || 0, 0)}
                 </span>
               </div>
               <Progress 
-                value={systemMetrics?.memoryUsage || 0} 
-                variant={systemMetrics?.memoryUsage && systemMetrics.memoryUsage > 80 ? 'danger' : systemMetrics?.memoryUsage && systemMetrics.memoryUsage > 60 ? 'warning' : 'default'}
+                value={systemMetrics?.memory?.percentage || 0} 
+                className={systemMetrics?.memory?.percentage && systemMetrics.memory.percentage > 80 ? 'bg-red-200' : systemMetrics?.memory?.percentage && systemMetrics.memory.percentage > 60 ? 'bg-yellow-200' : 'bg-green-200'}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {systemMetrics?.memory?.used || 0} / {systemMetrics?.memory?.total || 0} MB
+              </p>
+            </div>
+            
+            <div>
+              <div className="flex justify-between mb-3">
+                <span className="text-base font-medium text-gray-600 dark:text-gray-400">آموزش فعال</span>
+                <span className="text-base font-bold">
+                  {monitoring?.training?.active || 0} جلسه
+                </span>
+              </div>
+              <Progress 
+                value={(monitoring?.training?.active || 0) * 20} 
+                className="bg-purple-200"
               />
             </div>
             
             <div>
               <div className="flex justify-between mb-3">
-                <span className="text-base font-medium text-gray-600 dark:text-gray-400">فضای ذخیره‌سازی</span>
+                <span className="text-base font-medium text-gray-600 dark:text-gray-400">فعالیت سیستم</span>
                 <span className="text-base font-bold">
-                  {formatPersianPercentage(systemMetrics?.storageUsage || 0, 0)}
+                  {Object.values(monitoring?.activity || {}).reduce((sum: number, count: any) => sum + count, 0)} رویداد
                 </span>
               </div>
-              <Progress 
-                value={systemMetrics?.storageUsage || 0} 
-                variant={systemMetrics?.storageUsage && systemMetrics.storageUsage > 80 ? 'danger' : systemMetrics?.storageUsage && systemMetrics.storageUsage > 60 ? 'warning' : 'success'}
-              />
-            </div>
-            
-            <div>
-              <div className="flex justify-between mb-3">
-                <span className="text-base font-medium text-gray-600 dark:text-gray-400">شبکه</span>
-                <span className="text-base font-bold">
-                  {formatPersianPercentage(systemMetrics?.networkUsage || 0, 0)}
-                </span>
-              </div>
-              <Progress value={systemMetrics?.networkUsage || 0} variant="default" />
+              <Progress value={Math.min(100, Object.values(monitoring?.activity || {}).reduce((sum: number, count: any) => sum + count, 0))} />
             </div>
           </CardContent>
         </Card>
@@ -307,7 +325,7 @@ export function Overview() {
                   <span className="text-base font-medium text-blue-700 dark:text-blue-300">تکمیل شده</span>
                 </div>
                 <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                  {trainingStats?.completedSessions || 0}
+                  {monitoring?.training?.completed || 0}
                 </div>
               </div>
               
@@ -317,7 +335,7 @@ export function Overview() {
                   <span className="text-base font-medium text-yellow-700 dark:text-yellow-300">در حال اجرا</span>
                 </div>
                 <div className="text-2xl font-bold text-yellow-900 dark:text-yellow-100">
-                  {trainingStats?.runningSessions || 0}
+                  {monitoring?.training?.active || 0}
                 </div>
               </div>
               
@@ -327,17 +345,17 @@ export function Overview() {
                   <span className="text-base font-medium text-red-700 dark:text-red-300">ناموفق</span>
                 </div>
                 <div className="text-2xl font-bold text-red-900 dark:text-red-100">
-                  {trainingStats?.failedSessions || 0}
+                  {monitoring?.training?.failed || 0}
                 </div>
               </div>
               
               <div className="bg-green-50 dark:bg-green-950 p-4 rounded-xl">
                 <div className="flex items-center gap-3 mb-2">
-                  <HardDrive className="h-5 w-5 text-green-600" />
-                  <span className="text-base font-medium text-green-700 dark:text-green-300">زمان کل</span>
+                  <Zap className="h-5 w-5 text-green-600" />
+                  <span className="text-base font-medium text-green-700 dark:text-green-300">نرخ موفقیت</span>
                 </div>
                 <div className="text-2xl font-bold text-green-900 dark:text-green-100">
-                  {Math.round(trainingStats?.totalTrainingTime || 0)}د
+                  {monitoring?.training?.success_rate || '0'}%
                 </div>
               </div>
             </div>
@@ -349,23 +367,29 @@ export function Overview() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl font-bold">پیشرفت آموزش ماهانه</CardTitle>
+            <CardTitle className="text-xl font-bold">فعالیت آموزش در طول زمان</CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
             <ResponsiveContainer width="100%" height={350}>
-              <LineChart data={trainingProgressData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Line 
-                  type="monotone" 
-                  dataKey="accuracy" 
-                  stroke="#3B82F6" 
-                  strokeWidth={2}
-                  dot={{ fill: '#3B82F6' }}
-                />
-              </LineChart>
+              {trainingProgressData.length > 0 ? (
+                <AreaChart data={trainingProgressData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Area 
+                    type="monotone" 
+                    dataKey="models_created" 
+                    stroke="#3B82F6" 
+                    fill="#3B82F6"
+                    fillOpacity={0.6}
+                  />
+                </AreaChart>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                  هیچ داده‌ای برای نمایش وجود ندارد
+                </div>
+              )}
             </ResponsiveContainer>
           </CardContent>
         </Card>
@@ -376,43 +400,55 @@ export function Overview() {
           </CardHeader>
           <CardContent className="pt-6">
             <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={modelPerformanceData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="performance" fill="#10B981" radius={[4, 4, 0, 0]} />
-              </BarChart>
+              {modelPerformanceData.length > 0 ? (
+                <BarChart data={modelPerformanceData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip 
+                    formatter={(value, name) => [
+                      name === 'performance' ? `${value}%` : value,
+                      name === 'performance' ? 'میانگین دقت' : 'تعداد جلسات'
+                    ]}
+                  />
+                  <Bar dataKey="performance" fill="#10B981" radius={[4, 4, 0, 0]} name="performance" />
+                  <Bar dataKey="max_accuracy" fill="#3B82F6" radius={[4, 4, 0, 0]} name="max_accuracy" />
+                </BarChart>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                  هیچ داده‌ای برای نمایش وجود ندارد
+                </div>
+              )}
             </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
 
-      {/* Document Categories */}
-      {documentCategoryData.length > 0 && (
+      {/* System Activity Pie Chart */}
+      {systemHealthData.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl font-bold">توزیع دسته‌بندی اسناد</CardTitle>
+            <CardTitle className="text-xl font-bold">وضعیت سیستم</CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
             <div className="flex items-center justify-center">
               <ResponsiveContainer width="100%" height={350}>
                 <PieChart>
                   <Pie
-                    data={documentCategoryData}
+                    data={systemHealthData}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                    label={({ name, value }) => `${name}: ${value.toFixed(1)}%`}
                     outerRadius={100}
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {documentCategoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    {systemHealthData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip formatter={(value) => [`${value.toFixed(1)}%`, 'استفاده']} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -427,29 +463,48 @@ export function Overview() {
         </CardHeader>
         <CardContent className="pt-6">
           <div className="space-y-5">
-            {trainingSessions.slice(0, 5).map((session) => (
-              <div key={session.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                <div className="flex items-center gap-4">
-                  <Brain className="h-5 w-5 text-blue-600" />
-                  <div>
-                    <p className="font-semibold text-base">{session.name}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      {formatPersianDate(session.createdAt)}
-                    </p>
+            {models.slice(0, 5).map((model) => {
+              const progress = trainingProgress.get(model.id);
+              return (
+                <div key={model.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <Brain className="h-5 w-5 text-blue-600" />
+                    <div>
+                      <p className="font-semibold text-base">{model.name}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        {model.type === 'dora' ? 'DoRA' : 
+                         model.type === 'qr-adaptor' ? 'QR-Adaptor' : 
+                         model.type === 'persian-bert' ? 'Persian BERT' : model.type}
+                        {progress && ` • Epoch ${progress.epoch}/${progress.totalEpochs}`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {progress && (
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        {progress.completionPercentage.toFixed(1)}%
+                      </div>
+                    )}
+                    <Badge variant={
+                      model.status === 'completed' ? 'success' :
+                      model.status === 'training' ? 'default' :
+                      model.status === 'failed' ? 'destructive' : 
+                      model.status === 'paused' ? 'warning' : 'secondary'
+                    }>
+                      {model.status === 'completed' ? 'تکمیل شده' :
+                       model.status === 'training' ? 'در حال آموزش' :
+                       model.status === 'failed' ? 'ناموفق' :
+                       model.status === 'paused' ? 'متوقف شده' : 'آماده'}
+                    </Badge>
                   </div>
                 </div>
-                <Badge variant={
-                  session.status === 'completed' ? 'success' :
-                  session.status === 'running' ? 'default' :
-                  session.status === 'failed' ? 'destructive' : 'secondary'
-                }>
-                  {session.status === 'completed' ? 'تکمیل شده' :
-                   session.status === 'running' ? 'در حال اجرا' :
-                   session.status === 'failed' ? 'ناموفق' :
-                   session.status === 'paused' ? 'متوقف شده' : 'در انتظار'}
-                </Badge>
+              );
+            })}
+            {models.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                هیچ مدلی یافت نشد
               </div>
-            ))}
+            )}
           </div>
         </CardContent>
       </Card>

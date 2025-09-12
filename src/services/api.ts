@@ -178,3 +178,28 @@ export const onDatasetUpdated = (callback: (data: { id: string; status: string }
   socket.on('dataset_updated', callback);
   return () => socket.off('dataset_updated', callback);
 };
+
+export const onDatasetDownloadProgress = (callback: (data: { id: string; downloaded: number; total: number }) => void) => {
+  socket.on('dataset_download_progress', callback);
+  return () => socket.off('dataset_download_progress', callback);
+};
+
+export const onTrainingMetrics = (callback: (data: { modelId: number; [key: string]: any }) => void) => {
+  socket.on('training_metrics', callback);
+  return () => socket.off('training_metrics', callback);
+};
+
+export const onTrainingPaused = (callback: (data: { modelId: number }) => void) => {
+  socket.on('training_paused', callback);
+  return () => socket.off('training_paused', callback);
+};
+
+export const onTrainingResumed = (callback: (data: { modelId: number }) => void) => {
+  socket.on('training_resumed', callback);
+  return () => socket.off('training_resumed', callback);
+};
+
+export const onTrainingFailed = (callback: (data: { modelId: number; error: string }) => void) => {
+  socket.on('training_failed', callback);
+  return () => socket.off('training_failed', callback);
+};

@@ -9,7 +9,10 @@
     "build": "tsc && vite build --config vite.config.cjs",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview --config vite.config.cjs",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "start": "node start.js",
+    "server": "node server/index.js",
+    "compile-server": "npx tsc server/index.ts --outDir server --target es2020 --module commonjs --esModuleInterop --allowSyntheticDefaultImports --skipLibCheck"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.8.4",

@@ -73,12 +73,12 @@ export class RealTrainingEngine {
     let hiddenState = embedding;
     
     for (let i = 0; i < 12; i++) {
-      // Self-attention (simplified)
-      const attention = tf.layers.multiHeadAttention({
-        numHeads: 12,
-        keyDim: 64,
+      // Self-attention (simplified - using dense layers as approximation)
+      const attention = tf.layers.dense({
+        units: 768,
+        activation: 'tanh',
         name: `attention_${i}`
-      }).apply([hiddenState, hiddenState]) as tf.SymbolicTensor;
+      }).apply(hiddenState) as tf.SymbolicTensor;
       
       // Add & Norm
       const addNorm1 = tf.layers.add().apply([hiddenState, attention]) as tf.SymbolicTensor;
