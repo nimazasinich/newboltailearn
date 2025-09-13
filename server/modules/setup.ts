@@ -2,6 +2,7 @@ import { Application } from 'express';
 import { Server } from 'socket.io';
 import Database from 'better-sqlite3';
 import { applySecurity, setupDevIdentification } from './security/index.js';
+import { applyRouteProtection } from './security/routeProtection.js';
 import { setupMetrics } from './monitoring/metrics.js';
 import { configureSocketAuth } from './sockets/auth.js';
 import { createAuthRoutes } from './routes/auth.routes.js';
@@ -21,24 +22,28 @@ export function setupModules(app: Application, db: Database.Database, io: Server
   // 1. Apply security middleware
   applySecurity(app);
   console.log('✅ Security middleware applied');
+  
+  // 2. Apply route-specific protection (JWT, CSRF, rate limiting)
+  applyRouteProtection(app);
+  console.log('✅ Route protection enforced');
 
-  // 2. Setup dev identification (non-production only)
+  // 3. Setup dev identification (non-production only)
   setupDevIdentification(app);
   if (config.NODE_ENV !== 'production' && config.DEV_ADMIN_USER) {
     console.log('✅ Dev identification endpoint enabled');
   }
 
-  // 3. Setup metrics endpoint
+  // 4. Setup metrics endpoint
   setupMetrics(app);
   if (config.ENABLE_METRICS) {
     console.log('✅ Metrics endpoint enabled at /metrics');
   }
 
-  // 4. Configure Socket.IO authentication
+  // 5. Configure Socket.IO authentication
   configureSocketAuth(io);
   console.log('✅ Socket.IO authentication configured');
 
-  // 5. Setup modular routes
+  // 6. Setup modular routes
   setupModularRoutes(app, db);
   console.log('✅ Modular routes configured');
 }
