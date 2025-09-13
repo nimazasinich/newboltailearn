@@ -2,39 +2,46 @@ import { Server } from 'socket.io';
 import Database from 'better-sqlite3';
 import { getRealTrainingEngine } from '../../training/RealTrainingEngineImpl.js';
 import { config, isDemoMode } from '../security/config.js';
+import { WorkerManager } from '../workers/trainingWorker.js';
+import { 
+  TrainingConfig, 
+  TrainingProgress, 
+  TrainingResult,
+  WorkerMetrics,
+  PerformanceMetrics
+} from '../workers/types.js';
 
-export interface TrainingConfig {
-  epochs: number;
-  batchSize: number;
-  learningRate: number;
-  validationSplit?: number;
-  earlyStopping?: boolean;
-  patience?: number;
-}
-
-export interface TrainingProgress {
-  epoch: number;
-  loss: number;
-  accuracy: number;
-  validationLoss?: number;
-  validationAccuracy?: number;
-  timestamp: string;
-}
+// TrainingConfig and TrainingProgress are now imported from types.js
 
 export class TrainingService {
   private db: Database.Database;
   private io: Server;
   private trainingEngine: ReturnType<typeof getRealTrainingEngine>;
+  private workerManager: WorkerManager;
   private activeTrainingSessions = new Map<number, boolean>();
+  private useWorkers: boolean;
 
   constructor(db: Database.Database, io: Server) {
     this.db = db;
     this.io = io;
     this.trainingEngine = getRealTrainingEngine(db);
+    this.useWorkers = process.env.USE_WORKERS === 'true';
+    this.workerManager = new WorkerManager(io);
+    
+    // Set up worker progress forwarding to Socket.IO
+    this.setupWorkerProgressForwarding();
   }
 
   /**
-   * Start real training for a model
+   * Set up progress forwarding from workers to Socket.IO
+   */
+  private setupWorkerProgressForwarding(): void {
+    // This will be implemented to forward worker progress to Socket.IO clients
+    // The WorkerManager will emit progress updates that we'll forward
+  }
+
+  /**
+   * Start real training for a model with worker thread support
    */
   async startTraining(
     modelId: number,
@@ -77,11 +84,18 @@ export class TrainingService {
       // Mark as active
       this.activeTrainingSessions.set(modelId, true);
 
-      // Start real training in background
-      this.runTraining(modelId, datasetId, config, sessionId).catch(error => {
-        console.error('Training failed:', error);
-        this.handleTrainingError(modelId, sessionId, error.message);
-      });
+      // Start training with worker threads or main thread
+      if (this.useWorkers) {
+        this.runTrainingWithWorkers(modelId, datasetId, config, sessionId, userId).catch(error => {
+          console.error('Worker training failed:', error);
+          this.handleTrainingError(modelId, sessionId, error.message);
+        });
+      } else {
+        this.runTraining(modelId, datasetId, config, sessionId).catch(error => {
+          console.error('Training failed:', error);
+          this.handleTrainingError(modelId, sessionId, error.message);
+        });
+      }
 
       return { success: true, sessionId };
     } catch (error) {
@@ -91,7 +105,98 @@ export class TrainingService {
   }
 
   /**
-   * Run the actual training process
+   * Run training with worker threads
+   */
+  private async runTrainingWithWorkers(
+    modelId: number,
+    datasetId: string,
+    config: TrainingConfig,
+    sessionId: number,
+    userId: number
+  ): Promise<void> {
+    try {
+      console.log(`Starting worker-based training for model ${modelId}`);
+      
+      // Start training in worker thread
+      const result: TrainingResult = await this.workerManager.startTraining(
+        modelId,
+        datasetId,
+        config,
+        sessionId,
+        userId
+      );
+      
+      // Handle successful completion
+      this.handleWorkerTrainingComplete(modelId, sessionId, result);
+      
+    } catch (error) {
+      console.error('Worker training failed:', error);
+      this.handleTrainingError(modelId, sessionId, error instanceof Error ? error.message : 'Unknown error');
+    }
+  }
+
+  /**
+   * Handle worker training completion
+   */
+  private handleWorkerTrainingComplete(modelId: number, sessionId: number, result: TrainingResult): void {
+    // Update model with final results
+    this.db.prepare(`
+      UPDATE models 
+      SET status = 'completed', 
+          current_epoch = ?, 
+          loss = ?, 
+          accuracy = ?, 
+          updated_at = CURRENT_TIMESTAMP 
+      WHERE id = ?
+    `).run(result.totalEpochs, result.finalLoss, result.finalAccuracy, modelId);
+
+    // Update session status
+    this.db.prepare(`
+      UPDATE training_sessions 
+      SET status = 'completed', 
+          end_time = CURRENT_TIMESTAMP,
+          final_accuracy = ?,
+          final_loss = ?,
+          training_time = ?
+      WHERE id = ?
+    `).run(result.finalAccuracy, result.finalLoss, result.trainingTime, sessionId);
+
+    // Log completion with metrics
+    this.db.prepare(`
+      INSERT INTO training_logs (model_id, level, message, epoch, loss, accuracy, timestamp)
+      VALUES (?, 'info', ?, ?, ?, ?, ?)
+    `).run(
+      modelId,
+      `Training completed successfully. Peak memory: ${result.metrics.peakMemoryUsage.toFixed(2)}MB, Avg epoch time: ${result.metrics.averageEpochTime.toFixed(2)}ms`,
+      result.totalEpochs,
+      result.finalLoss,
+      result.finalAccuracy,
+      new Date().toISOString()
+    );
+
+    // Emit completion event with detailed results
+    this.io.emit('training_completed', {
+      modelId,
+      sessionId,
+      message: 'Training completed successfully',
+      result: {
+        finalLoss: result.finalLoss,
+        finalAccuracy: result.finalAccuracy,
+        totalEpochs: result.totalEpochs,
+        trainingTime: result.trainingTime,
+        checkpointPath: result.checkpointPath,
+        metrics: result.metrics
+      }
+    });
+
+    // Remove from active sessions
+    this.activeTrainingSessions.delete(modelId);
+
+    console.log(`Worker training completed for model ${modelId} in ${result.trainingTime}ms`);
+  }
+
+  /**
+   * Run the actual training process (main thread fallback)
    */
   private async runTraining(
     modelId: number,
@@ -324,5 +429,128 @@ export class TrainingService {
    */
   getActiveSessions(): number[] {
     return Array.from(this.activeTrainingSessions.keys());
+  }
+
+  /**
+   * Get worker pool status and metrics
+   */
+  getWorkerStatus(): {
+    useWorkers: boolean;
+    status?: any;
+    health?: any;
+  } {
+    if (!this.useWorkers) {
+      return { useWorkers: false };
+    }
+
+    return {
+      useWorkers: true,
+      status: this.workerManager.getStatus(),
+      health: this.workerManager.healthCheck()
+    };
+  }
+
+  /**
+   * Get performance metrics
+   */
+  getPerformanceMetrics(): PerformanceMetrics | null {
+    if (!this.useWorkers) {
+      return null;
+    }
+
+    const status = this.workerManager.getStatus();
+    return status.performance;
+  }
+
+  /**
+   * Health check for worker threads
+   */
+  async performHealthCheck(): Promise<{
+    isHealthy: boolean;
+    issues: string[];
+    metrics: any;
+  }> {
+    if (!this.useWorkers) {
+      return {
+        isHealthy: true,
+        issues: [],
+        metrics: { message: 'Workers disabled' }
+      };
+    }
+
+    try {
+      const healthChecks = await this.workerManager.healthCheck();
+      const unhealthyWorkers = healthChecks.filter(check => !check.isHealthy);
+      const allIssues = unhealthyWorkers.flatMap(worker => worker.issues);
+
+      return {
+        isHealthy: unhealthyWorkers.length === 0,
+        issues: allIssues,
+        metrics: this.workerManager.getStatus()
+      };
+    } catch (error) {
+      return {
+        isHealthy: false,
+        issues: [`Health check failed: ${(error as Error).message}`],
+        metrics: null
+      };
+    }
+  }
+
+  /**
+   * Gracefully shutdown worker threads
+   */
+  async shutdown(): Promise<void> {
+    if (this.useWorkers) {
+      console.log('Shutting down worker threads...');
+      await this.workerManager.terminate();
+      console.log('Worker threads shut down successfully');
+    }
+  }
+
+  /**
+   * Evaluate model using worker threads
+   */
+  async evaluateModel(
+    modelId: number,
+    testDatasetId: string,
+    checkpointPath: string
+  ): Promise<{ success: boolean; result?: any; error?: string }> {
+    try {
+      if (!this.useWorkers) {
+        return { success: false, error: 'Workers not enabled' };
+      }
+
+      const result = await this.workerManager.evaluateModel(modelId, testDatasetId, checkpointPath);
+      return { success: true, result };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      };
+    }
+  }
+
+  /**
+   * Predict using worker threads
+   */
+  async predict(
+    modelId: number,
+    texts: string[],
+    checkpointPath: string
+  ): Promise<{ success: boolean; result?: any; error?: string }> {
+    try {
+      if (!this.useWorkers) {
+        return { success: false, error: 'Workers not enabled' };
+      }
+
+      const result = await this.workerManager.predict(modelId, texts, checkpointPath);
+      return { success: true, result };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      };
+    }
   }
 }
