@@ -25,24 +25,31 @@ const io = new Server(server, {
   }
 });
 
-// Middleware
-app.use(cors());
+// STEP 1: Body parser & basic middleware (MUST BE FIRST)
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ extended: true }));
-
-// ✅ Serve React build (production)
-const distPath = path.join(__dirname, "../dist");
-app.use(express.static(distPath));
+app.use(cors());
 
 // Initialize SQLite Database
 const dbPath = path.join(process.cwd(), 'persian_legal_ai.db');
 const db = new Database(dbPath);
 
+// Apply database optimizations
+db.pragma('journal_mode = WAL');
+db.pragma('cache_size = -64000');
+db.pragma('synchronous = NORMAL');
+db.pragma('foreign_keys = ON');
+console.log('✅ Database optimizations applied');
+
 // Initialize Auth Service
 const authService = new AuthService(db);
 
-// Setup modular components (security, routes, monitoring, etc.)
+// STEP 2-6: Setup modular components (session, security, CSRF, routes, monitoring)
 setupModules(app, db, io);
+
+// ✅ Serve React build (production) - AFTER security middleware
+const distPath = path.join(__dirname, "../dist");
+app.use(express.static(distPath));
 
 // Create tables
 db.exec(`
@@ -1976,10 +1983,10 @@ const activeTrainingSessions = new Map<number, unknown>();
 // Real training function using TensorFlow.js
 async function startRealTraining(modelId: number, model: Record<string, unknown>, config: Record<string, unknown>) {
   try {
-    // Import training engine dynamically
-    const { RealTrainingEngine } = await import('./training/RealTrainingEngine.js');
+    // Import real training engine implementation
+    const { getRealTrainingEngine } = await import('./training/RealTrainingEngineImpl.js');
     
-    const trainingEngine = new RealTrainingEngine();
+    const trainingEngine = getRealTrainingEngine(db);
     activeTrainingSessions.set(modelId, trainingEngine);
     
     // Load datasets

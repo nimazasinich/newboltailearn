@@ -4,6 +4,7 @@ import { AppLayout } from '../components/layout/AppLayout';
 import { LandingPage } from '../components/LandingPage';
 import { PageSkeleton } from '../components/ui/PageSkeleton';
 import { NotFoundPage } from '../pages/NotFoundPage';
+import { AuthGuard } from '../components/AuthGuard';
 
 // Lazy load pages for code splitting
 const DashboardPage = lazy(() => import('../pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
@@ -39,23 +40,43 @@ export const routes = [
       },
       {
         path: 'dashboard',
-        element: <DashboardPage />,
+        element: (
+          <AuthGuard>
+            <DashboardPage />
+          </AuthGuard>
+        ),
       },
       {
         path: 'training',
-        element: <TrainingPage />,
+        element: (
+          <AuthGuard requiredRole="trainer">
+            <TrainingPage />
+          </AuthGuard>
+        ),
       },
       {
         path: 'leaderboard',
-        element: <LeaderboardPage />,
+        element: (
+          <AuthGuard>
+            <LeaderboardPage />
+          </AuthGuard>
+        ),
       },
       {
         path: 'history',
-        element: <TrainingHistoryPage />,
+        element: (
+          <AuthGuard>
+            <TrainingHistoryPage />
+          </AuthGuard>
+        ),
       },
       {
         path: 'management',
-        element: <ModelManagementPage />,
+        element: (
+          <AuthGuard requiredRole="admin">
+            <ModelManagementPage />
+          </AuthGuard>
+        ),
       },
       {
         path: 'documents',

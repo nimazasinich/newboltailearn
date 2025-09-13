@@ -46,6 +46,14 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
     return next();
   }
 
+  // Skip CSRF for auth endpoints (login/register don't have session yet)
+  if (req.path.includes('/auth/login') || 
+      req.path.includes('/auth/register') ||
+      req.path.includes('/health') ||
+      req.path.includes('/metrics')) {
+    return next();
+  }
+
   // Skip CSRF in development mode if configured
   if (process.env.NODE_ENV === 'development' && process.env.SKIP_CSRF === 'true') {
     return next();

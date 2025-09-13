@@ -15,8 +15,10 @@ export function configureSocketAuth(io: Server): void {
   // Authentication middleware for Socket.IO
   io.use(async (socket: AuthenticatedSocket, next) => {
     try {
-      // Get token from handshake auth or query
-      const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+      // Get token from multiple sources (fixed extraction)
+      const token = socket.handshake.auth?.token || 
+                   socket.handshake.headers?.authorization?.split(' ')[1] ||
+                   socket.handshake.query?.token;
       
       if (!token) {
         return next(new Error('Authentication required'));
