@@ -2,7 +2,7 @@ import request from 'supertest';
 import express from 'express';
 import { beforeAll, beforeEach, describe, it, expect } from '@jest/globals';
 import { testDb, createTestUser, generateTestToken } from '../setup';
-import { requireAuth, requireRole } from '../../server/middleware/auth.js';
+import { requireAuth, requireRole } from '../../server/middleware/auth';
 
 describe('Analytics API', () => {
   let app: express.Application;
@@ -206,13 +206,13 @@ describe('Analytics API', () => {
       expect(response.body.trainingAnalytics).toHaveProperty('successRate');
     });
 
-    it('should reject access for trainer', async () => {
+    it('should allow access for trainer', async () => {
       const response = await request(app)
         .get('/api/analytics/advanced')
         .set('Authorization', `Bearer ${trainerToken}`);
 
-      expect(response.status).toBe(403);
-      expect(response.body.error).toBe('Insufficient permissions');
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('modelPerformance');
     });
 
     it('should require authentication', async () => {

@@ -2,7 +2,7 @@ import request from 'supertest';
 import express from 'express';
 import { beforeAll, beforeEach, describe, it, expect } from '@jest/globals';
 import { testDb, createTestUser, generateTestToken } from '../setup';
-import { requireAuth, requireRole } from '../../server/middleware/auth.js';
+import { requireAuth, requireRole } from '../../server/middleware/auth';
 
 describe('Datasets API', () => {
   let app: express.Application;
@@ -44,7 +44,7 @@ describe('Datasets API', () => {
     app.post('/api/datasets/:id/download', requireAuth, requireRole('trainer'), (req, res) => {
       try {
         const { id } = req.params;
-        const dataset = testDb.prepare('SELECT * FROM datasets WHERE id = ?').get(id);
+        const dataset = testDb.prepare('SELECT * FROM datasets WHERE id = ?').get(id) as any;
         
         if (!dataset) {
           return res.status(404).json({ error: 'Dataset not found' });
@@ -99,7 +99,9 @@ describe('Datasets API', () => {
       expect(response.body.message).toBe('Dataset download started');
       
       // Verify status was updated
-      const dataset = testDb.prepare('SELECT status FROM datasets WHERE id = ?').get('test-dataset-1');
+      const dataset = testDb
+        .prepare('SELECT status FROM datasets WHERE id = ?')
+        .get('test-dataset-1') as { status: string };
       expect(dataset.status).toBe('downloading');
     });
 

@@ -7,6 +7,7 @@ import { Server } from 'socket.io';
 import Database from 'better-sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 import { getHFHeaders, testHFConnection, logTokenStatus } from './utils/decode.js';
 import { requireAuth, requireRole } from './middleware/auth.js';
 import { AuthService } from './services/authService.js';
@@ -33,8 +34,27 @@ app.use(bodyParser.urlencoded({ extended: true }));
 const distPath = path.join(__dirname, "../dist");
 app.use(express.static(distPath));
 
-// Initialize SQLite Database
-const dbPath = path.join(process.cwd(), 'persian_legal_ai.db');
+// Initialize SQLite Database with writable copy handling
+const defaultDbPath = path.join(process.cwd(), 'persian_legal_ai.db');
+const configuredDbPath = process.env.DB_PATH
+  ? path.resolve(process.env.DB_PATH)
+  : defaultDbPath;
+
+let dbPath = configuredDbPath;
+
+try {
+  // Ensure the configured path is writable
+  fs.accessSync(dbPath, fs.constants.W_OK);
+} catch {
+  // Create a writable copy if the database is read-only
+  const writableDir = path.join(process.cwd(), 'tmp');
+  fs.mkdirSync(writableDir, { recursive: true });
+  const writablePath = path.join(writableDir, path.basename(configuredDbPath));
+  fs.copyFileSync(configuredDbPath, writablePath);
+  fs.chmodSync(writablePath, 0o600);
+  dbPath = writablePath;
+}
+
 const db = new Database(dbPath);
 
 // Initialize Auth Service

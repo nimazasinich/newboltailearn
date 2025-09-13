@@ -7,6 +7,7 @@ import { AuthService } from '../../server/services/authService';
 describe('Authentication API', () => {
   let app: express.Application;
   let authService: AuthService;
+  let existingUser: { username: string; email: string };
 
   beforeAll(() => {
     app = express();
@@ -66,8 +67,8 @@ describe('Authentication API', () => {
   });
 
   beforeEach(async () => {
-    // Create a test user for login tests
-    await createTestUser('viewer');
+    // Create a test user for login and duplicate tests
+    existingUser = await createTestUser('viewer');
   });
 
   describe('POST /api/auth/login', () => {
@@ -75,7 +76,7 @@ describe('Authentication API', () => {
       const response = await request(app)
         .post('/api/auth/login')
         .send({
-          username: 'testuser',
+          username: existingUser.username,
           password: 'testpassword'
         });
 
@@ -83,7 +84,7 @@ describe('Authentication API', () => {
       expect(response.body.message).toBe('Login successful');
       expect(response.body.user).toBeDefined();
       expect(response.body.token).toBeDefined();
-      expect(response.body.user.username).toBe('testuser');
+      expect(response.body.user.username).toBe(existingUser.username);
       expect(response.body.user.role).toBe('viewer');
     });
 
@@ -134,7 +135,7 @@ describe('Authentication API', () => {
       const response = await request(app)
         .post('/api/auth/register')
         .send({
-          username: 'testuser', // Already exists
+          username: existingUser.username, // Already exists
           email: 'different@example.com',
           password: 'password'
         });

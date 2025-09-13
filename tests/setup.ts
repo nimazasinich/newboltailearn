@@ -3,8 +3,8 @@ import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
 
-// Test database path
-const TEST_DB_PATH = path.join(process.cwd(), 'test_persian_legal_ai.db');
+// Test database path (unique per process to avoid locking)
+const TEST_DB_PATH = path.join(process.cwd(), `test_persian_legal_ai_${process.pid}.db`);
 
 // Global test database instance
 export let testDb: Database.Database;
@@ -14,6 +14,7 @@ beforeAll(async () => {
   process.env.NODE_ENV = 'test';
   process.env.JWT_SECRET = 'test-jwt-secret-key-for-testing-only';
   process.env.HF_TOKEN_ENC = Buffer.from('hf_test_token_for_testing').toString('base64');
+  process.env.DB_PATH = TEST_DB_PATH;
   
   // Ensure test database file is deleted
   if (fs.existsSync(TEST_DB_PATH)) {
@@ -22,6 +23,7 @@ beforeAll(async () => {
   
   // Create test database with proper permissions
   testDb = new Database(TEST_DB_PATH);
+  fs.chmodSync(TEST_DB_PATH, 0o600);
   
   // Create test tables
   testDb.exec(`

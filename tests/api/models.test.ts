@@ -2,12 +2,13 @@ import request from 'supertest';
 import express from 'express';
 import { beforeAll, beforeEach, describe, it, expect } from '@jest/globals';
 import { testDb, createTestUser, generateTestToken } from '../setup';
-import { requireAuth, requireRole } from '../../server/middleware/auth.js';
+import { requireAuth, requireRole } from '../../server/middleware/auth';
 
 describe('Models API', () => {
   let app: express.Application;
   let trainerToken: string;
   let viewerToken: string;
+  let modelId: number;
 
   beforeAll(async () => {
     app = express();
@@ -72,7 +73,7 @@ describe('Models API', () => {
         const { id } = req.params;
         const { epochs = 10, batch_size = 32, learning_rate = 0.001 } = req.body;
         
-        const model = testDb.prepare('SELECT * FROM models WHERE id = ?').get(id);
+        const model = testDb.prepare('SELECT * FROM models WHERE id = ?').get(id) as any;
         if (!model) {
           return res.status(404).json({ error: 'Model not found' });
         }
@@ -144,9 +145,13 @@ describe('Models API', () => {
     // Create test users and tokens
     const trainer = await createTestUser('trainer');
     const viewer = await createTestUser('viewer');
-    
+
     trainerToken = generateTestToken(trainer);
     viewerToken = generateTestToken(viewer);
+
+    // Capture ID of a model inserted by test setup
+    const firstModel = testDb.prepare('SELECT id FROM models ORDER BY id LIMIT 1').get() as { id: number };
+    modelId = firstModel.id;
   });
 
   describe('GET /api/models', () => {
@@ -196,7 +201,7 @@ describe('Models API', () => {
   describe('POST /api/models/:id/train', () => {
     it('should start training for trainer', async () => {
       const response = await request(app)
-        .post('/api/models/1/train')
+        .post(`/api/models/${modelId}/train`)
         .set('Authorization', `Bearer ${trainerToken}`)
         .send({
           epochs: 5,
@@ -210,7 +215,7 @@ describe('Models API', () => {
 
     it('should reject training for viewer', async () => {
       const response = await request(app)
-        .post('/api/models/1/train')
+        .post(`/api/models/${modelId}/train`)
         .set('Authorization', `Bearer ${viewerToken}`)
         .send({
           epochs: 5
@@ -236,7 +241,7 @@ describe('Models API', () => {
   describe('PUT /api/models/:id', () => {
     it('should update model', async () => {
       const response = await request(app)
-        .put('/api/models/1')
+        .put(`/api/models/${modelId}`)
         .set('Authorization', `Bearer ${trainerToken}`)
         .send({
           name: 'Updated Model Name',
@@ -251,7 +256,7 @@ describe('Models API', () => {
   describe('DELETE /api/models/:id', () => {
     it('should delete model', async () => {
       const response = await request(app)
-        .delete('/api/models/1')
+        .delete(`/api/models/${modelId}`)
         .set('Authorization', `Bearer ${trainerToken}`);
 
       expect(response.status).toBe(200);
@@ -260,7 +265,7 @@ describe('Models API', () => {
 
     it('should return 404 for non-existent model', async () => {
       const response = await request(app)
-        .delete('/api/models/999')
+        .delete(`/api/models/${modelId + 999}`)
         .set('Authorization', `Bearer ${trainerToken}`);
 
       expect(response.status).toBe(404);
