@@ -1,0 +1,38 @@
+
+> iranian-legal-archive@1.0.0 test
+> vitest run --reporter=dot --coverage=false --run tests/unit/auth.test.ts
+
+
+ RUN  v1.6.1 /workspace
+
+stderr | tests/unit/auth.test.ts > AuthController > login > should handle login errors gracefully
+Validate user error: TypeError: The database connection is not open
+    at Database.prepare (/workspace/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+    at AuthService.validateUser (/workspace/server/services/authService.js:204:34)
+    at AuthController.login (/workspace/server/modules/controllers/auth.controller.js:10:49)
+    at /workspace/tests/unit/auth.test.ts:105:28
+    at file:///workspace/node_modules/@vitest/runner/dist/index.js:135:14
+    at file:///workspace/node_modules/@vitest/runner/dist/index.js:60:26
+    at runTest (file:///workspace/node_modules/@vitest/runner/dist/index.js:781:17)
+    at runSuite (file:///workspace/node_modules/@vitest/runner/dist/index.js:909:15)
+    at runSuite (file:///workspace/node_modules/@vitest/runner/dist/index.js:909:15)
+    at runSuite (file:///workspace/node_modules/@vitest/runner/dist/index.js:909:15)
+Login error: TypeError: The database connection is not open
+    at Database.prepare (/workspace/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+    at AuthService.validateUser (/workspace/server/services/authService.js:204:34)
+    at AuthController.login (/workspace/server/modules/controllers/auth.controller.js:10:49)
+    at /workspace/tests/unit/auth.test.ts:105:28
+    at file:///workspace/node_modules/@vitest/runner/dist/index.js:135:14
+    at file:///workspace/node_modules/@vitest/runner/dist/index.js:60:26
+    at runTest (file:///workspace/node_modules/@vitest/runner/dist/index.js:781:17)
+    at runSuite (file:///workspace/node_modules/@vitest/runner/dist/index.js:909:15)
+    at runSuite (file:///workspace/node_modules/@vitest/runner/dist/index.js:909:15)
+    at runSuite (file:///workspace/node_modules/@vitest/runner/dist/index.js:909:15)
+
+ ✓ tests/unit/auth.test.ts  (10 tests) 1468ms
+
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+   Start at  10:31:37
+   Duration  1.88s (transform 42ms, setup 25ms, collect 52ms, tests 1.47s, environment 0ms, prepare 166ms)
+

@@ -161,7 +161,7 @@ class DatabaseBackup {
 }
 
 // CLI interface
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   const args = process.argv.slice(2);
   const command = args[0];
   

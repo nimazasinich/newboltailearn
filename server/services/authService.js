@@ -226,7 +226,7 @@ export class AuthService {
         }
         catch (error) {
             console.error('Validate user error:', error);
-            return null;
+            throw error;
         }
     }
     /**

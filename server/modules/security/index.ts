@@ -6,7 +6,7 @@ import { injectCSRFToken, csrfProtection, getCSRFToken } from './csrf.js';
 import { sanitizeResponse } from './validators.js';
 import { config } from './config.js';
 import compression from 'compression';
-import mongoSanitize from 'express-mongo-sanitize';
+import { mongoSanitizeMiddleware } from './mongoSanitize.js';
 
 /**
  * Apply all security middleware to the application
@@ -35,12 +35,7 @@ export function applySecurity(app: Application): void {
   app.use(globalRateLimiter);
   
   // Input sanitization
-  app.use(mongoSanitize({
-    replaceWith: '_',
-    onSanitize: ({ req, key }) => {
-      console.warn(`Sanitized potentially malicious input in ${key}`);
-    }
-  }));
+  app.use(mongoSanitizeMiddleware);
   
   // Output sanitization
   app.use(sanitizeResponse);

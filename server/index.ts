@@ -393,15 +393,7 @@ async function getCPUUsage(): Promise<number> {
 
 // Health check endpoint
 app.get('/health', (_req, res) => {
-  const health = {
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development',
-    database: db.open ? 'connected' : 'disconnected',
-    version: process.env.npm_package_version || '1.0.0'
-  };
-  res.json(health);
+  res.json({ ok: true });
 });
 
 // API Routes

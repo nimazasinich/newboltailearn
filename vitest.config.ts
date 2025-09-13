@@ -8,6 +8,10 @@ export default defineConfig({
     exclude: ['node_modules', 'dist', 'tests/**/*.test.js'],
     testTimeout: 10000,
     hookTimeout: 10000,
+    env: {
+      NODE_ENV: 'test'
+    },
+    setupFiles: ['./tests/setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],

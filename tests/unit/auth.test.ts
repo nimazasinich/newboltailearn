@@ -12,6 +12,9 @@ describe('AuthController', () => {
   let mockRes: Partial<Response>;
 
   beforeEach(() => {
+    // Set environment variables
+    process.env.JWT_SECRET = 'test-jwt-secret-key';
+    
     // Create in-memory database
     db = new Database(':memory:');
     

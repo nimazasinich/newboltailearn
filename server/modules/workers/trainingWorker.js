@@ -451,7 +451,7 @@ class TrainingWorkerPool {
     }
     initializePool() {
         for (let i = 0; i < this.maxWorkers; i++) {
-            const worker = new Worker(__filename);
+            const worker = new Worker(new URL(import.meta.url));
             worker.on('error', (error) => {
                 console.error('Worker error:', error);
                 this.handleWorkerError(worker);
@@ -524,7 +524,7 @@ class TrainingWorkerPool {
         const index = this.workers.indexOf(oldWorker);
         if (index > -1) {
             oldWorker.terminate();
-            const newWorker = new Worker(__filename);
+            const newWorker = new Worker(new URL(import.meta.url));
             newWorker.on('error', (error) => {
                 console.error('Worker error:', error);
                 this.handleWorkerError(newWorker);
@@ -596,6 +596,4 @@ class WorkerManager {
     }
 }
 // Export classes for main thread use (only if not in worker thread)
-if (isMainThread) {
-    module.exports = { TrainingWorkerPool, WorkerManager };
-}
+export { TrainingWorkerPool, WorkerManager };

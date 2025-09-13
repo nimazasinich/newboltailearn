@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, beforeEach } from '@jest/globals';
+import { beforeAll, afterAll, beforeEach } from 'vitest';
 import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
