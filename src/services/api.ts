@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { API_URL } from '../lib/config'
 
+type RequestInit = globalThis.RequestInit
+
 const BASE = `${API_URL}/api`
 let csrf = ''
 
@@ -82,7 +84,9 @@ async function getCsrf() {
       const j = await r.json()
       csrf = j?.token || ''
     }
-  } catch {}
+  } catch (error) {
+    // Ignore CSRF errors
+  }
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {

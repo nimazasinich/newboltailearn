@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
+
+type RequestInit = globalThis.RequestInit
 import { api, ApiError } from '../lib/api'
 
 export function useApi<T>(endpoint: string, options?: RequestInit, deps: any[] = []) {

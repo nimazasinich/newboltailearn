@@ -118,4 +118,4 @@ export function safePersianFormat(date: any): string {
 }
 
 // Export the calendar data for other components
-export const PersianCalendar = persianCalendarData;
+export const PersianCalendarData = persianCalendarData;

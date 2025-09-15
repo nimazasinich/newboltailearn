@@ -351,16 +351,6 @@ export class RealTrainingEngineImpl {
         await this.model.save(`file://${filePath}`);
     }
     /**
-     * Stop training
-     */
-    stopTraining() {
-        this.isTraining = false;
-        if (this.model) {
-            // TensorFlow.js doesn't have a direct stop method, but we can set a flag
-            this.model.stopTraining = true;
-        }
-    }
-    /**
      * Dispose of resources
      */
     dispose() {

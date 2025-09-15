@@ -18,7 +18,7 @@ export class WSClient {
       try {
         this.ws = new WebSocket(this.url())
         this.ws.onopen = () => { this.attempts = 0; resolve() }
-        this.ws.onmessage = ev => { try { const m = JSON.parse(ev.data) as WSMessage; this.emit(m) } catch(e){} }
+        this.ws.onmessage = ev => { try { const m = JSON.parse(ev.data) as WSMessage; this.emit(m) } catch(e){ /* ignore parse errors */ } }
         this.ws.onclose = () => { this.reconnect() }
         this.ws.onerror = err => { reject(err) }
       } catch (e) { reject(e) }

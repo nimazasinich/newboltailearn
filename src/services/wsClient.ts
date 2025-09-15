@@ -17,7 +17,7 @@ class WSClient {
   private reconnectAttempts = 0
   private maxReconnectAttempts = 5
   private reconnectDelays = [1000, 2000, 5000, 10000, 10000] // 1s, 2s, 5s, 10s, 10s
-  private reconnectTimer: NodeJS.Timeout | null = null
+  private reconnectTimer: number | null = null
   private isConnecting = false
   private shouldReconnect = true
 

@@ -197,7 +197,7 @@ export function sanitizeOutput(data: any): any {
   if (data && typeof data === 'object') {
     const sanitized: any = {};
     for (const key in data) {
-      if (data.hasOwnProperty(key)) {
+        if (Object.prototype.hasOwnProperty.call(data, key)) {
         sanitized[key] = sanitizeOutput(data[key]);
       }
     }

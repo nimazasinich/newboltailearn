@@ -53,7 +53,7 @@ export class PersianLegalAIDB extends Dexie {
   private tokenizePersianText(text: string): string[] {
     // Persian text tokenization with legal terms
     const persianText = this.normalizePersianText(text);
-    const tokens = persianText.split(/[\s\u200C\u200D\u200E\u200F\u061C]+/)
+    const tokens = persianText.split(/[\s\u200C-\u200F\u061C]+/)
       .filter(token => token.length > 1)
       .map(token => token.toLowerCase());
     

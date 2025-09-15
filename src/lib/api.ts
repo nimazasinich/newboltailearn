@@ -1,5 +1,7 @@
 import { API_BASE } from './config'
 
+type RequestInit = globalThis.RequestInit
+
 export class ApiError extends Error {
   status: number
   response: any
@@ -20,7 +22,9 @@ export async function api<T=any>(endpoint: string, options: RequestInit = {}): P
     clearTimeout(t)
     if (!res.ok) {
       let body: any = null
-      try { body = await res.json() } catch {}
+      try { body = await res.json() } catch (error) {
+        // Ignore JSON parsing errors
+      }
       throw new ApiError(body?.message || `HTTP ${res.status}`, res.status, body)
     }
     const ct = res.headers.get('content-type')||''

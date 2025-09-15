@@ -105,6 +105,7 @@ export class DoRATrainer {
     this.isTraining = true;
     const startTime = Date.now();
     let step = 0;
+    let lastEpochLoss = 0;
 
     try {
       // Create optimizer with specific learning rate for DoRA
@@ -161,6 +162,8 @@ export class DoRATrainer {
         if (this.config.adaptiveRank && epoch % 5 === 0) {
           await this.adjustRank();
         }
+        
+        lastEpochLoss = epochLoss;
       }
 
       // Final evaluation
@@ -170,7 +173,7 @@ export class DoRATrainer {
         totalEpochs: epochs,
         currentStep: epochs * Math.ceil(trainData.xs.shape[0] / 32),
         totalSteps: epochs * Math.ceil(trainData.xs.shape[0] / 32),
-        trainingLoss: [epochLoss / Math.ceil(trainData.xs.shape[0] / 32)],
+        trainingLoss: [lastEpochLoss / Math.ceil(trainData.xs.shape[0] / 32)],
         validationLoss: [finalValidation.loss],
         validationAccuracy: [finalValidation.accuracy],
         learningRate: [optimizer.getConfig().learningRate as number],
