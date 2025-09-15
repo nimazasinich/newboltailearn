@@ -12,5 +12,5 @@ services:
       - key: NODE_ENV
         value: production
       - key: DB_PATH
-        value: ./database.sqlite
+        value: ./persian_legal_ai.db
     autoDeploy: true

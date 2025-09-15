@@ -162,6 +162,48 @@ function setupAPIRoutes() {
             res.status(500).json({ error: 'Failed to get database stats' });
         }
     });
+
+    // Debug endpoint for database schema (for troubleshooting)
+    app.get('/api/debug/schema', (req, res) => {
+        try {
+            const db = dbManager.getConnection();
+            const tables = ['datasets', 'models', 'users'];
+            const schema = {};
+            
+            tables.forEach(tableName => {
+                try {
+                    const tableInfo = db.prepare(`PRAGMA table_info(${tableName})`).all();
+                    schema[tableName] = tableInfo.map(col => ({
+                        name: col.name,
+                        type: col.type,
+                        nullable: !col.notnull,
+                        defaultValue: col.dflt_value
+                    }));
+                } catch (error) {
+                    schema[tableName] = { error: error.message };
+                }
+            });
+            
+            // Also check for sample dataset data
+            try {
+                const sampleData = db.prepare('SELECT id, name, description FROM datasets LIMIT 3').all();
+                schema.sampleData = sampleData;
+            } catch (error) {
+                schema.sampleData = { error: error.message };
+            }
+            
+            res.json({
+                timestamp: new Date().toISOString(),
+                dbPath: process.env.DB_PATH || './persian_legal_ai.db',
+                schema
+            });
+        } catch (error) {
+            res.status(500).json({ 
+                error: 'Failed to get schema info',
+                message: error.message 
+            });
+        }
+    });
     
     // All other API routes are handled by the modular system
     // which is set up in setupModules()

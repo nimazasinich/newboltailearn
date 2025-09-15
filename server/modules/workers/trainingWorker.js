@@ -494,7 +494,7 @@ class TrainingWorkerPool {
     }
     initializePool() {
         for (let i = 0; i < this.maxWorkers; i++) {
-            const worker = new Worker(__filename);
+            const worker = new Worker(new URL(import.meta.url).pathname);
             worker.on('error', (error) => {
                 console.error('Worker error:', error);
                 this.handleWorkerError(worker);

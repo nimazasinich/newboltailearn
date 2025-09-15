@@ -69,6 +69,7 @@ export class DatabaseMigrator {
     runSchemaSetup() {
         try {
             console.log('🔄 Setting up database schema...');
+            console.log(`📍 Schema file path: ${this.schemaPath}`);
             
             if (!fs.existsSync(this.schemaPath)) {
                 console.error('❌ Schema file not found:', this.schemaPath);
@@ -76,12 +77,39 @@ export class DatabaseMigrator {
             }
 
             const schema = fs.readFileSync(this.schemaPath, 'utf8');
+            console.log('📄 Schema preview (first 200 chars):');
+            console.log(schema.substring(0, 200) + (schema.length > 200 ? '...' : ''));
+            
             this.db.exec(schema);
             
-            console.log('✅ Database schema applied');
+            // Verify key tables were created
+            const tables = ['users', 'models', 'datasets'];
+            for (const table of tables) {
+                const result = this.db.prepare(`
+                    SELECT name FROM sqlite_master 
+                    WHERE type='table' AND name=?
+                `).get(table);
+                
+                if (!result) {
+                    throw new Error(`Required table '${table}' was not created`);
+                }
+                
+                // For datasets table, specifically verify description column exists
+                if (table === 'datasets') {
+                    const tableInfo = this.db.prepare('PRAGMA table_info(datasets)').all();
+                    const hasDescription = tableInfo.some(col => col.name === 'description');
+                    if (!hasDescription) {
+                        throw new Error('datasets table was created but missing description column');
+                    }
+                    console.log('✅ datasets table created with description column');
+                }
+            }
+            
+            console.log('✅ Database schema applied and verified');
             return true;
         } catch (error) {
             console.error('❌ Failed to apply schema:', error);
+            console.error('❌ Schema error details:', error.message);
             return false;
         }
     }
@@ -102,6 +130,28 @@ export class DatabaseMigrator {
                 console.error('❌ Migration failed while adding datasets.description:', e);
                 throw e;
             }
+
+            // Verify the column exists by checking table structure
+            try {
+                const tableInfo = this.db.prepare('PRAGMA table_info(datasets)').all();
+                const hasDescription = tableInfo.some(col => col.name === 'description');
+                if (!hasDescription) {
+                    throw new Error('datasets.description column is missing after migration attempt');
+                }
+                console.log('✅ Verified datasets.description column exists');
+            } catch (e) {
+                console.error('❌ Failed to verify datasets.description column:', e);
+                console.log('📋 Current datasets table structure:');
+                try {
+                    const tableInfo = this.db.prepare('PRAGMA table_info(datasets)').all();
+                    tableInfo.forEach(col => {
+                        console.log(`  ${col.name}: ${col.type} (nullable: ${!col.notnull})`);
+                    });
+                } catch (infoError) {
+                    console.error('❌ Failed to get table info:', infoError);
+                }
+                throw e;
+            }
             
             if (!fs.existsSync(this.seedPath)) {
                 console.log('⚠️ No seed file found, skipping seed data');
@@ -109,12 +159,21 @@ export class DatabaseMigrator {
             }
 
             const seedData = fs.readFileSync(this.seedPath, 'utf8');
+            
+            // Log the seed data for debugging
+            console.log('📄 Seed data preview (first 500 chars):');
+            console.log(seedData.substring(0, 500) + (seedData.length > 500 ? '...' : ''));
+            
             this.db.exec(seedData);
             
             console.log('✅ Seed data applied');
             return true;
         } catch (error) {
             console.error('❌ Failed to apply seed data:', error);
+            console.error('❌ Error details:', error.message);
+            if (error.stack) {
+                console.error('❌ Stack trace:', error.stack);
+            }
             return false;
         }
     }
