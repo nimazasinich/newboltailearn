@@ -3,9 +3,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Brain, ArrowLeft, Sparkles, Zap, Target } from "lucide-react";
 
-type JSX = React.JSX;
-
-export function LandingPage(): JSX.Element {
+export function LandingPage(): React.ReactElement {
   const navigate = useNavigate();
 
   const handleStart = () => {

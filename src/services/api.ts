@@ -59,7 +59,7 @@ export const DatasetSchema = z.object({
   samples: z.number(),
   size_mb: z.number(),
   status: z.string(),
-  type: z.string(),
+  type: z.string().optional(),
   created_at: z.string(),
   last_used: z.string().optional(),
   description: z.string().optional(),
@@ -136,20 +136,35 @@ export const API = {
   
   // Models and training
   models: (): Promise<TrainingSession[]> => requestWithSchema('/models', z.array(TrainingSessionSchema)),
+  getModels: (): Promise<TrainingSession[]> => requestWithSchema('/models', z.array(TrainingSessionSchema)),
   getModel: (id: string | number): Promise<TrainingSession> => requestWithSchema(`/models/${id}`, TrainingSessionSchema),
-  startTraining: (id: string | number, body: any) => request(`/models/${id}/start`, { method: 'POST', body: JSON.stringify(body) }),
+  createModel: (data: any) => request('/models', { method: 'POST', body: JSON.stringify(data) }),
+  startTraining: (id: string | number, body?: any) => request(`/models/${id}/start`, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
   pauseTraining: (id: string | number) => request(`/models/${id}/pause`, { method: 'POST' }),
   stopTraining: (id: string | number) => request(`/models/${id}/stop`, { method: 'POST' }),
+  resumeTraining: (id: string | number) => request(`/models/${id}/resume`, { method: 'POST' }),
   
   // Datasets
   datasets: (): Promise<Dataset[]> => requestWithSchema('/datasets', z.array(DatasetSchema)),
+  getDatasets: (): Promise<Dataset[]> => requestWithSchema('/datasets', z.array(DatasetSchema)),
   getDataset: (id: string | number): Promise<Dataset> => requestWithSchema(`/datasets/${id}`, DatasetSchema),
+  downloadDataset: (id: string | number) => request(`/datasets/${id}/download`, { method: 'POST' }),
   
   // Logs (fallback to raw request since schema varies)
   logs: (params?: { page?: number; limit?: number }) => {
     const query = params ? `?${new URLSearchParams(params as any).toString()}` : ''
     return request(`/logs${query}`)
   },
+  getLogs: (params?: { page?: number; limit?: number }) => {
+    const query = params ? `?${new URLSearchParams(params as any).toString()}` : ''
+    return request(`/logs${query}`)
+  },
+  
+  // Additional API methods
+  getAnalytics: () => request('/analytics'),
+  getSystemMetrics: (): Promise<SystemMetrics> => requestWithSchema('/system-stats', SystemMetricsSchema),
+  getSettings: () => request('/settings'),
+  updateSettings: (settings: any) => request('/settings', { method: 'PUT', body: JSON.stringify(settings) }),
 }
 
 export async function bootstrapClient() {
