@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { addColumnIfMissing } from './utils/columns.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -91,6 +92,16 @@ export class DatabaseMigrator {
     runSeedData() {
         try {
             console.log('🔄 Applying seed data...');
+            
+            // Ensure datasets.description column exists before seeding
+            try {
+                const added = addColumnIfMissing(this.db, 'datasets', `description TEXT DEFAULT ''`);
+                if (added) console.log('✅ Migration: added datasets.description');
+                else console.log('ℹ️ Migration: datasets.description already exists');
+            } catch (e) {
+                console.error('❌ Migration failed while adding datasets.description:', e);
+                throw e;
+            }
             
             if (!fs.existsSync(this.seedPath)) {
                 console.log('⚠️ No seed file found, skipping seed data');

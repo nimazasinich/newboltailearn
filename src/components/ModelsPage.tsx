@@ -24,6 +24,8 @@ interface Dataset {
   samples: number;
   size_mb: number;
   status: string;
+  type: string;
+  description?: string;
 }
 
 interface TrainingProgress {

@@ -60,6 +60,7 @@ export const DatasetSchema = z.object({
   type: z.string(),
   created_at: z.string(),
   last_used: z.string().optional(),
+  description: z.string().optional(),
 })
 
 export const HealthSchema = z.object({

@@ -254,12 +254,22 @@ const defaultDatasets = [
 ];
 
 const insertDataset = db.prepare(`
-  INSERT OR IGNORE INTO datasets (id, name, source, huggingface_id, samples, size_mb)
-  VALUES (?, ?, ?, ?, ?, ?)
+  INSERT OR IGNORE INTO datasets (id, name, source, huggingface_id, samples, size_mb, status, type, description)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
 defaultDatasets.forEach(dataset => {
-  insertDataset.run(dataset.id, dataset.name, dataset.source, dataset.huggingface_id, dataset.samples, dataset.size_mb);
+  insertDataset.run(
+    dataset.id, 
+    dataset.name, 
+    dataset.source, 
+    dataset.huggingface_id, 
+    dataset.samples, 
+    dataset.size_mb,
+    dataset.status || 'available',
+    dataset.type || 'text',
+    dataset.description || ''
+  );
 });
 
 // Insert default settings

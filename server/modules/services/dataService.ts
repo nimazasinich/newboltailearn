@@ -109,8 +109,8 @@ export class DataService {
     }
 
     const result = this.db.prepare(`
-      INSERT INTO datasets (id, name, source, huggingface_id, samples, size_mb, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO datasets (id, name, source, huggingface_id, samples, size_mb, status, type, description)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       data.id || `dataset-${Date.now()}`,
       data.name,
@@ -118,7 +118,9 @@ export class DataService {
       data.huggingface_id,
       data.samples || 0,
       data.size_mb || 0,
-      data.status || 'available'
+      data.status || 'available',
+      data.type || 'text',
+      data.description || ''
     );
 
     return {
