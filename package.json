@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Persian Legal Document Archive System with AI Classification and Web Scraping",
   "engines": {
-    "node": ">=20 <21"
+    "node": ">=20.0.0 <21.0.0",
+    "npm": ">=10.0.0"
   },
   "scripts": {
     "dev": "vite --config vite.config.ts",
@@ -13,7 +14,14 @@
     "build:gh": "cross-env VITE_BASE_PATH=/newboltailearn/ vite build --config vite.config.ts && node scripts/make-404.js",
     "preview": "vite preview --config vite.config.ts",
     "start": "NODE_ENV=production node server.js",
-    "postinstall": "node -e \"try{require('better-sqlite3');process.exit(0)}catch(e){process.exit(1)}\" || npm rebuild better-sqlite3 --build-from-source",
+    "preinstall": "node -e \"console.log('Node:', process.version, 'ABI:', process.versions.modules)\"",
+    "postinstall": "npm run health-check",
+    "health-check": "node -e \"try{require('better-sqlite3');console.log('✅ better-sqlite3 loaded successfully')}catch(e){console.error('❌ better-sqlite3 failed:',e.message);process.exit(1)}\"",
+    "rebuild-native": "npm rebuild better-sqlite3 --build-from-source",
+    "verify-native": "node -e \"try{require('better-sqlite3');console.log('✅ Native module OK')}catch(e){console.error('❌ Native module failed:',e.message);process.exit(1)}\"",
+    "render:clean-build": "rm -rf node_modules package-lock.json && npm cache clean --force && npm ci",
+    "render:verify-abi": "node -e \"console.log('✅ Node:', process.version, 'ABI:', process.versions.modules); try{require('better-sqlite3'); console.log('✅ better-sqlite3: OK')}catch(e){console.error('❌ better-sqlite3:', e.message); process.exit(1)}\"",
+    "check:permissions": "node -e \"const fs = require('fs'); const path = './data'; try { fs.mkdirSync(path, {recursive: true}); fs.accessSync(path, fs.constants.W_OK); console.log('✅ Write permissions OK'); } catch(e) { console.error('❌ Permission error:', e.message); process.exit(1); }\"",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
     "type-check": "tsc --noEmit --project tsconfig.app.json",
     "compile-server": "echo 'Server compilation not needed - using JS files directly'",

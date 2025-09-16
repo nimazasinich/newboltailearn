@@ -4,8 +4,8 @@ services:
     env: node
     plan: free
     region: frankfurt
-    buildCommand: "npm ci && npm cache clean --force"
-    startCommand: "node server.js"
+    buildCommand: "echo '🔧 Build started with Node' $(node -v) && rm -rf node_modules package-lock.json || true && npm cache clean --force && npm ci --prefer-offline --no-audit && npm run render:verify-abi && echo '✅ Build completed successfully'"
+    startCommand: "echo '🚀 Starting with Node' $(node -v) && npm run render:verify-abi && node server.js"
     envVars:
       - key: NODE_VERSION
         value: 20.17.0
@@ -15,6 +15,8 @@ services:
         value: production
       - key: DB_PATH
         value: ./persian_legal_ai.db
-      - key: NODE_VERSION
-        value: 20.17.0
+      - key: NPM_CONFIG_AUDIT
+        value: false
+      - key: NPM_CONFIG_FUND
+        value: false
     autoDeploy: true

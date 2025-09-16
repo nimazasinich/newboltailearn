@@ -11,6 +11,7 @@ import { getHFHeaders, testHFConnection, logTokenStatus } from './utils/decode.j
 import { requireAuth, requireRole } from './middleware/auth.js';
 import { AuthService } from './services/authService.js';
 import { setupModules } from './modules/setup.js';
+import { createHealthEndpoint } from './health.js';
 
 // ES module __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
@@ -403,18 +404,8 @@ async function getCPUUsage(): Promise<number> {
   });
 }
 
-// Health check endpoint
-app.get('/health', (_req, res) => {
-  const health = {
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development',
-    database: db.open ? 'connected' : 'disconnected',
-    version: process.env.npm_package_version || '1.0.0'
-  };
-  res.json(health);
-});
+// Enhanced health check endpoint with better-sqlite3 validation
+app.get('/health', createHealthEndpoint());
 
 // API Routes
 
