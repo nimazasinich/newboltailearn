@@ -1,0 +1,40 @@
+# Example Usage of replace_branch_with_main.sh
+
+## Basic Usage
+```bash
+# Make the script executable (if not already done)
+chmod +x replace_branch_with_main.sh
+
+# Replace a branch with main contents
+./replace_branch_with_main.sh backup/ci-fixes-2025-09-16
+
+# Or with any other branch name
+./replace_branch_with_main.sh feature/old-implementation
+./replace_branch_with_main.sh hotfix/emergency-fix
+```
+
+## What the script does:
+1. ✅ Creates a backup tag before any destructive actions
+2. ✅ Validates git repository and branch existence  
+3. ✅ Updates main to latest from remote
+4. ✅ Switches to target branch
+5. ✅ Resets target branch to match main exactly
+6. ✅ Force pushes to remote (with user confirmation)
+7. ✅ Provides verification and rollback instructions
+
+## Safety Features:
+- 🛡️ Requires explicit "yes" confirmation before destructive actions
+- 🛡️ Creates backup tags with timestamps
+- 🛡️ Validates git repository and branch existence
+- 🛡️ Clear error messages and colored output
+- 🛡️ Provides rollback instructions in output
+
+## Rollback if needed:
+If you need to restore the original branch:
+```bash
+git checkout <TARGET_BRANCH>
+git reset --hard <BACKUP_TAG_NAME>
+git push origin <TARGET_BRANCH> --force
+```
+
+The backup tag name will be shown in the script output.
