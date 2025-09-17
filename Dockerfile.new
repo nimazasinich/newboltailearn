@@ -1,0 +1,44 @@
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Install native build deps for some packages
+RUN apk add --no-cache python3 make g++ git
+
+# copy lockfile and manifests first for caching
+COPY package*.json ./
+COPY pnpm-lock.yaml yarn.lock package-lock.json* ./
+
+# Install all deps (dev + prod) so build tools like vite are available
+RUN npm ci --silent
+
+# Copy project files
+COPY . .
+
+# Build step (expects "npm run build" to produce /app/dist or /app/docs)
+RUN npm run build
+
+# Pack build output into temporary directory (supports dist or docs)
+RUN if [ -d /app/dist ]; then \
+      mkdir -p /tmp/site && cp -R /app/dist/* /tmp/site/; \
+    elif [ -d /app/docs ]; then \
+      mkdir -p /tmp/site && cp -R /app/docs/* /tmp/site/; \
+    else \
+      echo "ERROR: No build output found (checked /app/dist and /app/docs)" >&2; exit 1; \
+    fi
+
+# Final production image
+FROM nginx:alpine AS final
+# remove default content
+RUN rm -rf /usr/share/nginx/html/*
+
+# Copy built static site from builder
+COPY --from=builder /tmp/site /usr/share/nginx/html
+
+# Optional: copy a custom nginx.conf if exists in repo root
+# If user has nginx.conf, copy it:
+COPY nginx.conf /etc/nginx/nginx.conf
+# If no custom conf, the default nginx will serve static files. For SPA fallback add config.
+
+EXPOSE 80
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s CMD wget -qO- --spider http://localhost:80/ || exit 1
+CMD ["nginx", "-g", "daemon off;"]
