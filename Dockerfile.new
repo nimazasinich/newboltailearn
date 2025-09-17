@@ -1,0 +1,41 @@
+# DOCKERFILE START
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Install native build dependencies needed by some packages
+RUN apk add --no-cache python3 make g++ git
+
+# copy manifests for caching
+COPY package*.json ./
+COPY pnpm-lock.yaml yarn.lock package-lock.json* ./
+
+# install all deps so build tools like vite are available
+RUN npm ci --silent
+
+# copy source
+COPY . .
+
+# build (expects "npm run build" to produce /app/dist or /app/docs)
+RUN npm run build
+
+# pack build output (support dist or docs)
+RUN if [ -d /app/dist ]; then \
+      mkdir -p /tmp/site && cp -R /app/dist/* /tmp/site/; \
+    elif [ -d /app/docs ]; then \
+      mkdir -p /tmp/site && cp -R /app/docs/* /tmp/site/; \
+    else \
+      echo "ERROR: No build output found (checked /app/dist and /app/docs)" >&2; exit 1; \
+    fi
+
+FROM nginx:alpine AS final
+RUN rm -rf /usr/share/nginx/html/*
+COPY --from=builder /tmp/site /usr/share/nginx/html
+
+# Optional custom config — only copy if file exists (no error if absent)
+COPY nginx.conf /etc/nginx/nginx.conf || true
+
+EXPOSE 80
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s \
+  CMD wget -qO- --spider http://localhost:80/ || exit 1
+CMD ["nginx", "-g", "daemon off;"]
+# DOCKERFILE END
