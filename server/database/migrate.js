@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import DatabaseManager from './DatabaseManager.js';
 import { addColumnIfMissing } from './utils/columns.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -23,9 +24,11 @@ export class DatabaseMigrator {
     /**
      * Initialize database connection with proper settings
      */
-    connect() {
+    async connect() {
         try {
-            this.db = new Database(this.dbPath);
+            // Use DatabaseManager singleton instead of direct instantiation
+            await DatabaseManager.initialize();
+            this.db = DatabaseManager.getConnection();
             
             // Apply SQLite optimizations
             this.db.pragma('journal_mode = WAL');
@@ -283,7 +286,7 @@ export class DatabaseMigrator {
         console.log('🚀 Starting database migration...');
         console.log(`📍 Database path: ${this.dbPath}`);
 
-        if (!this.connect()) {
+        if (!(await this.connect())) {
             return false;
         }
 
