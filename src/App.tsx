@@ -2,6 +2,8 @@ import React, { Suspense, lazy } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AppLayout } from './components/layout/AppLayout'
 import { LandingPage } from './components/LandingPage'
+import ErrorBoundary from './components/ErrorBoundary'
+import { ToastProvider } from './components/ui/Toast'
 
 const lazyCompat = <T extends Record<string, any>>(imp: () => Promise<T>, key: string) =>
   lazy(async () => { const m = await imp(); return { default: m.default ?? m[key] } })
@@ -28,25 +30,29 @@ function AppLoading() {
 
 export default function App() {
   return (
-    <Suspense fallback={<AppLoading />}>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route element={<AppLayout />}>
-          <Route path="/overview" element={<Overview />} />
-          <Route path="/dashboard-advanced" element={<DashboardAdvanced />} />
-          <Route path="/analytics" element={<AnalyticsPage />} />
-          <Route path="/data" element={<DataPage />} />
-          <Route path="/logs" element={<LogsPage />} />
-          <Route path="/models" element={<ModelsPage />} />
-          <Route path="/monitoring" element={<MonitoringPage />} />
-          <Route path="/training" element={<TrainingManagement />} />
-          <Route path="/team" element={<TeamPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/download" element={<ProjectDownloader />} />
-        </Route>
-        <Route path="/dashboard" element={<Navigate to="/dashboard-advanced" replace />} />
-        <Route path="*" element={<Navigate to="/overview" replace />} />
-      </Routes>
-    </Suspense>
+    <ErrorBoundary>
+      <ToastProvider>
+        <Suspense fallback={<AppLoading />}>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route element={<AppLayout />}>
+              <Route path="/overview" element={<Overview />} />
+              <Route path="/dashboard-advanced" element={<DashboardAdvanced />} />
+              <Route path="/analytics" element={<AnalyticsPage />} />
+              <Route path="/data" element={<DataPage />} />
+              <Route path="/logs" element={<LogsPage />} />
+              <Route path="/models" element={<ModelsPage />} />
+              <Route path="/monitoring" element={<MonitoringPage />} />
+              <Route path="/training" element={<TrainingManagement />} />
+              <Route path="/team" element={<TeamPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/download" element={<ProjectDownloader />} />
+            </Route>
+            <Route path="/dashboard" element={<Navigate to="/dashboard-advanced" replace />} />
+            <Route path="*" element={<Navigate to="/overview" replace />} />
+          </Routes>
+        </Suspense>
+      </ToastProvider>
+    </ErrorBoundary>
   )
 }

@@ -1,218 +1,232 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
-import { Button } from './ui/Button';
-import { API } from '../services/api';
-import { useTheme } from '../hooks/useTheme';
-import { Settings, Save, Moon, Sun, Globe, Bell, AlertTriangle } from 'lucide-react';
+import { Settings, Save, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
+import { apiRequest, API_ENDPOINTS } from '@/lib/api-config';
+import { PageSkeleton } from './ui/PageSkeleton';
+import { Input } from './ui/Input';
+import { useToast } from './ui/Toast';
 
-export default function SettingsPage() {
-  const { theme, setTheme } = useTheme();
-  const [settings, setSettings] = useState({
-    language: 'fa',
-    notifications: true,
-    autoRefresh: true,
-    refreshInterval: 30
-  });
+interface SystemSettings {
+  [key: string]: {
+    value: string;
+    description: string;
+    updated_at: string;
+  };
+}
+
+export function SettingsPage() {
+  const [settings, setSettings] = useState<SystemSettings>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        setLoading(true);
-        const data = await API.getSettings();
-        setSettings(data && typeof data === 'object' ? { ...settings, ...data } : settings);
-      } catch (err) {
-        console.error('Failed to load settings:', err);
-        setError('خطا در بارگذاری تنظیمات');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadSettings();
   }, []);
+
+  const loadSettings = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await apiRequest(API_ENDPOINTS.SETTINGS);
+      const data = await response.json();
+      setSettings(data);
+    } catch (err) {
+      console.error('Failed to load settings:', err);
+      setError('خطا در بارگذاری تنظیمات');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSave = async () => {
     try {
       setSaving(true);
-      await API.updateSettings(settings);
-      alert('تنظیمات با موفقیت ذخیره شد');
+      
+      const updates: Record<string, string> = {};
+      Object.entries(settings).forEach(([key, setting]) => {
+        updates[key] = setting.value;
+      });
+
+      await apiRequest(API_ENDPOINTS.SETTINGS, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+
+      showToast('تنظیمات با موفقیت ذخیره شد', 'success');
+      await loadSettings(); // Reload to get updated timestamps
     } catch (err) {
       console.error('Failed to save settings:', err);
-      alert('خطا در ذخیره تنظیمات');
+      showToast('خطا در ذخیره تنظیمات', 'error');
     } finally {
       setSaving(false);
     }
   };
 
+  const updateSetting = (key: string, value: string) => {
+    setSettings(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        value
+      }
+    }));
+  };
+
+  const settingCategories = [
+    {
+      title: 'تنظیمات عمومی',
+      keys: ['dataset_directory', 'model_directory']
+    },
+    {
+      title: 'تنظیمات آموزش',
+      keys: ['max_concurrent_training', 'default_batch_size', 'default_learning_rate']
+    },
+    {
+      title: 'تنظیمات API',
+      keys: ['huggingface_token_configured']
+    }
+  ];
+
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64" dir="rtl">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <PageSkeleton showHeader />;
   }
 
   return (
     <div className="space-y-6" dir="rtl">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">تنظیمات</h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">
-          پیکربندی سیستم و تنظیمات کاربری
-        </p>
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">تنظیمات سیستم</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            پیکربندی و تنظیمات عمومی سیستم
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={loadSettings}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            بروزرسانی
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || loading}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            <Save className={`h-4 w-4 ${saving ? 'animate-pulse' : ''}`} />
+            {saving ? 'در حال ذخیره...' : 'ذخیره تغییرات'}
+          </button>
+        </div>
       </div>
 
+      {/* Error Alert */}
       {error && (
-        <div className="p-4 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+        <div className="p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-yellow-600" />
-            <p className="text-yellow-800 dark:text-yellow-200">{error}</p>
+            <AlertCircle className="h-5 w-5 text-red-600" />
+            <p className="text-red-800 dark:text-red-200">{error}</p>
           </div>
         </div>
       )}
 
-      <div className="grid gap-6">
-        {/* Appearance */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Moon className="h-5 w-5" />
-              ظاهر
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                تم
-              </label>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="theme"
-                    value="light"
-                    checked={theme === 'light'}
-                    onChange={() => setTheme('light')}
-                    className="text-blue-600"
-                  />
-                  <Sun className="h-4 w-4" />
-                  روشن
-                </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="theme"
-                    value="dark"
-                    checked={theme === 'dark'}
-                    onChange={() => setTheme('dark')}
-                    className="text-blue-600"
-                  />
-                  <Moon className="h-4 w-4" />
-                  تیره
-                </label>
+      {/* Settings Categories */}
+      <div className="space-y-6">
+        {settingCategories.map((category) => (
+          <div key={category.title} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                {category.title}
+              </h2>
+              
+              <div className="space-y-4">
+                {category.keys.map((key) => {
+                  const setting = settings[key];
+                  if (!setting) return null;
+
+                  return (
+                    <div key={key} className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {getSettingLabel(key)}
+                      </label>
+                      <Input
+                        value={setting.value}
+                        onChange={(e) => updateSetting(key, e.target.value)}
+                        placeholder={setting.description}
+                        className="max-w-md"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {setting.description}
+                      </p>
+                      {setting.updated_at && (
+                        <p className="text-xs text-gray-400 dark:text-gray-500">
+                          آخرین بروزرسانی: {new Date(setting.updated_at).toLocaleString('fa-IR')}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
+          </div>
+        ))}
+      </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                زبان
-              </label>
-              <select
-                value={settings.language}
-                onChange={(e) => setSettings(prev => ({ ...prev, language: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              >
-                <option value="fa">فارسی</option>
-                <option value="en">English</option>
-              </select>
+      {/* System Information */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <CheckCircle className="h-5 w-5" />
+            اطلاعات سیستم
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300">نسخه نرم‌افزار</div>
+              <div className="text-sm text-gray-900 dark:text-white">1.0.0</div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Notifications */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              اعلان‌ها
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  فعال‌سازی اعلان‌ها
-                </label>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  دریافت اعلان‌های سیستم و آموزش
-                </p>
+            
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300">محیط اجرا</div>
+              <div className="text-sm text-gray-900 dark:text-white">
+                {import.meta.env.MODE === 'development' ? 'توسعه' : 'تولید'}
               </div>
-              <input
-                type="checkbox"
-                checked={settings.notifications}
-                onChange={(e) => setSettings(prev => ({ ...prev, notifications: e.target.checked }))}
-                className="text-blue-600"
-              />
             </div>
-          </CardContent>
-        </Card>
-
-        {/* System */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              سیستم
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  بروزرسانی خودکار
-                </label>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  بروزرسانی خودکار داده‌ها
-                </p>
+            
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300">آدرس API</div>
+              <div className="text-sm text-gray-900 dark:text-white font-mono">
+                {import.meta.env.VITE_API_BASE || '/api'}
               </div>
-              <input
-                type="checkbox"
-                checked={settings.autoRefresh}
-                onChange={(e) => setSettings(prev => ({ ...prev, autoRefresh: e.target.checked }))}
-                className="text-blue-600"
-              />
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                فاصله بروزرسانی (ثانیه)
-              </label>
-              <input
-                type="number"
-                value={settings.refreshInterval}
-                onChange={(e) => setSettings(prev => ({ ...prev, refreshInterval: parseInt(e.target.value) }))}
-                min="5"
-                max="300"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              />
+            
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300">تعداد تنظیمات</div>
+              <div className="text-sm text-gray-900 dark:text-white">
+                {Object.keys(settings).length.toLocaleString('fa-IR')} مورد
+              </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Save Button */}
-        <div className="flex justify-end">
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Save className="h-4 w-4 ml-2" />
-            {saving ? 'در حال ذخیره...' : 'ذخیره تنظیمات'}
-          </Button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
+function getSettingLabel(key: string): string {
+  const labels: Record<string, string> = {
+    dataset_directory: 'مسیر دیتاست‌ها',
+    model_directory: 'مسیر مدل‌ها',
+    huggingface_token_configured: 'وضعیت توکن HuggingFace',
+    max_concurrent_training: 'حداکثر آموزش همزمان',
+    default_batch_size: 'اندازه پیش‌فرض Batch',
+    default_learning_rate: 'نرخ یادگیری پیش‌فرض',
+  };
+  
+  return labels[key] || key;
+}
+
+export default SettingsPage;

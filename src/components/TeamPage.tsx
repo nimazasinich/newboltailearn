@@ -1,287 +1,297 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
-import { Badge } from './ui/Badge';
-import { Button } from './ui/Button';
-import { Users, UserPlus, Mail, Shield, User, Crown, Eye } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Users, Star, Calendar, Award, RefreshCw, AlertCircle, Mail, User } from 'lucide-react';
+import { apiRequest, API_ENDPOINTS } from '@/lib/api-config';
+import { PageSkeleton } from './ui/PageSkeleton';
 
-export default function TeamPage() {
-  const [teamMembers] = useState([
-    {
-      id: 1,
-      name: 'علی احمدی',
-      email: 'ali.ahmadi@example.com',
-      role: 'admin',
-      avatar: null,
-      lastActive: '۲ دقیقه پیش',
-      status: 'online'
-    },
-    {
-      id: 2,
-      name: 'سارا محمدی',
-      email: 'sara.mohammadi@example.com',
-      role: 'trainer',
-      avatar: null,
-      lastActive: '۱ ساعت پیش',
-      status: 'away'
-    },
-    {
-      id: 3,
-      name: 'محمد رضایی',
-      email: 'mohammad.rezaei@example.com',
-      role: 'analyst',
-      avatar: null,
-      lastActive: '۳ ساعت پیش',
-      status: 'offline'
-    },
-    {
-      id: 4,
-      name: 'فاطمه کریمی',
-      email: 'fatemeh.karimi@example.com',
-      role: 'viewer',
-      avatar: null,
-      lastActive: '۱ روز پیش',
-      status: 'offline'
-    }
-  ]);
+interface TeamMember {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  avatar: string;
+  skills: string[];
+  projects: number;
+  rating: string;
+  lastActive: string | null;
+}
 
-  const getRoleIcon = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return <Crown className="h-4 w-4 text-yellow-600" />;
-      case 'trainer':
-        return <Shield className="h-4 w-4 text-blue-600" />;
-      case 'analyst':
-        return <User className="h-4 w-4 text-green-600" />;
-      case 'viewer':
-        return <Eye className="h-4 w-4 text-gray-600" />;
-      default:
-        return <User className="h-4 w-4 text-gray-600" />;
+interface TeamStats {
+  totalMembers: number;
+  activeMembers: number;
+  totalProjects: number;
+  completedProjects: number;
+  averageRating: string;
+  recentCommits: number;
+}
+
+interface TeamData {
+  members: TeamMember[];
+  stats: TeamStats;
+}
+
+export function TeamPage() {
+  const [teamData, setTeamData] = useState<TeamData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadTeamData();
+  }, []);
+
+  const loadTeamData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await apiRequest(API_ENDPOINTS.TEAM);
+      const data = await response.json();
+      setTeamData(data);
+    } catch (err) {
+      console.error('Failed to load team data:', err);
+      setError('خطا در بارگذاری اطلاعات تیم');
+    } finally {
+      setLoading(false);
     }
   };
 
   const getRoleLabel = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return 'مدیر سیستم';
-      case 'trainer':
-        return 'آموزش‌دهنده';
-      case 'analyst':
-        return 'تحلیلگر';
-      case 'viewer':
-        return 'مشاهده‌گر';
-      default:
-        return role;
-    }
+    const labels: Record<string, string> = {
+      admin: 'مدیر',
+      trainer: 'مربی',
+      viewer: 'بیننده',
+      user: 'کاربر'
+    };
+    return labels[role] || role;
   };
 
   const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-      case 'trainer':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-      case 'analyst':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'viewer':
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
-    }
+    const colors: Record<string, string> = {
+      admin: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+      trainer: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+      viewer: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+      user: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+    };
+    return colors[role] || colors.user;
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'online':
-        return 'bg-green-500';
-      case 'away':
-        return 'bg-yellow-500';
-      case 'offline':
-        return 'bg-gray-400';
-      default:
-        return 'bg-gray-400';
-    }
+  const formatLastActive = (lastActive: string | null) => {
+    if (!lastActive) return 'هرگز';
+    
+    const date = new Date(lastActive);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'امروز';
+    if (diffDays === 1) return 'دیروز';
+    if (diffDays < 7) return `${diffDays} روز پیش`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} هفته پیش`;
+    return date.toLocaleDateString('fa-IR');
   };
+
+  if (loading) {
+    return <PageSkeleton showHeader />;
+  }
+
+  if (!teamData) {
+    return (
+      <div className="text-center py-12">
+        <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <p className="text-gray-600 dark:text-gray-400">اطلاعات تیم در دسترس نیست</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6" dir="rtl">
+      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">مدیریت تیم</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">تیم توسعه</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            مدیریت اعضای تیم و دسترسی‌ها
+            اعضای تیم و آمار عملکرد
           </p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700">
-          <UserPlus className="h-4 w-4 ml-2" />
-          دعوت عضو جدید
-        </Button>
+        <button
+          onClick={loadTeamData}
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          بروزرسانی
+        </button>
       </div>
 
+      {/* Error Alert */}
+      {error && (
+        <div className="p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-red-600" />
+            <p className="text-red-800 dark:text-red-200">{error}</p>
+          </div>
+        </div>
+      )}
+
       {/* Team Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">کل اعضا</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{teamMembers.length}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">آنلاین</CardTitle>
-            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {teamMembers.filter(member => member.status === 'online').length}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+              <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">مدیران</CardTitle>
-            <Crown className="h-4 w-4 text-yellow-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {teamMembers.filter(member => member.role === 'admin').length}
+            <div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                {teamData.stats.totalMembers.toLocaleString('fa-IR')}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">کل اعضا</div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">آموزش‌دهندگان</CardTitle>
-            <Shield className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {teamMembers.filter(member => member.role === 'trainer').length}
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+              <User className="h-5 w-5 text-green-600 dark:text-green-400" />
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                {teamData.stats.activeMembers.toLocaleString('fa-IR')}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">فعال</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+              <Award className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                {teamData.stats.totalProjects.toLocaleString('fa-IR')}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">کل پروژه‌ها</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">
+              <Award className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                {teamData.stats.completedProjects.toLocaleString('fa-IR')}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">تکمیل شده</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900 rounded-lg flex items-center justify-center">
+              <Star className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                {teamData.stats.averageRating}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">میانگین امتیاز</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900 rounded-lg flex items-center justify-center">
+              <Calendar className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                {teamData.stats.recentCommits.toLocaleString('fa-IR')}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">کامیت‌های اخیر</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Team Members */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            اعضای تیم
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {teamMembers.map((member) => (
-              <div
-                key={member.id}
-                className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                      {member.name.charAt(0)}
-                    </div>
-                    <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(member.status)}`}></div>
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">اعضای تیم</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {teamData.members.map((member) => (
+              <div key={member.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-6 hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-lg font-bold">
+                    {member.avatar || member.name.charAt(0)}
                   </div>
-                  
-                  <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white">
-                      {member.name}
-                    </h3>
-                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                      <Mail className="h-3 w-3" />
-                      {member.email}
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900 dark:text-white">{member.name}</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Mail className="h-3 w-3 text-gray-500" />
+                      <span className="text-sm text-gray-600 dark:text-gray-400">{member.email}</span>
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      آخرین فعالیت: {member.lastActive}
-                    </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <Badge className={`${getRoleColor(member.role)} flex items-center gap-1`}>
-                    {getRoleIcon(member.role)}
-                    {getRoleLabel(member.role)}
-                  </Badge>
-                  
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline">
-                      ویرایش
-                    </Button>
-                    <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700">
-                      حذف
-                    </Button>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">نقش:</span>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(member.role)}`}>
+                      {getRoleLabel(member.role)}
+                    </span>
                   </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">امتیاز:</span>
+                    <div className="flex items-center gap-1">
+                      <Star className="h-4 w-4 text-yellow-500" />
+                      <span className="text-sm font-medium">{member.rating}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">پروژه‌ها:</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      {member.projects.toLocaleString('fa-IR')}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">آخرین فعالیت:</span>
+                    <span className="text-sm text-gray-900 dark:text-white">
+                      {formatLastActive(member.lastActive)}
+                    </span>
+                  </div>
+
+                  {member.skills.length > 0 && (
+                    <div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">مهارت‌ها:</div>
+                      <div className="flex flex-wrap gap-1">
+                        {member.skills.map((skill, index) => (
+                          <span
+                            key={index}
+                            className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Roles and Permissions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>نقش‌ها و دسترسی‌ها</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-4 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <Crown className="h-5 w-5 text-yellow-600" />
-                <h3 className="font-semibold">مدیر سیستم</h3>
-              </div>
-              <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                <li>• دسترسی کامل</li>
-                <li>• مدیریت کاربران</li>
-                <li>• تنظیمات سیستم</li>
-                <li>• حذف داده‌ها</li>
-              </ul>
-            </div>
-
-            <div className="p-4 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <Shield className="h-5 w-5 text-blue-600" />
-                <h3 className="font-semibold">آموزش‌دهنده</h3>
-              </div>
-              <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                <li>• آموزش مدل‌ها</li>
-                <li>• مدیریت اسناد</li>
-                <li>• مشاهده تحلیل‌ها</li>
-                <li>• صادرات داده</li>
-              </ul>
-            </div>
-
-            <div className="p-4 border border-green-200 dark:border-green-800 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <User className="h-5 w-5 text-green-600" />
-                <h3 className="font-semibold">تحلیلگر</h3>
-              </div>
-              <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                <li>• مشاهده تحلیل‌ها</li>
-                <li>• مدیریت اسناد</li>
-                <li>• صادرات داده</li>
-              </ul>
-            </div>
-
-            <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <Eye className="h-5 w-5 text-gray-600" />
-                <h3 className="font-semibold">مشاهده‌گر</h3>
-              </div>
-              <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                <li>• مشاهده تحلیل‌ها</li>
-                <li>• دسترسی محدود</li>
-              </ul>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
+
+export default TeamPage;
