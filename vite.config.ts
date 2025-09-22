@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import path from 'path';
 
 export default ({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
@@ -7,6 +8,11 @@ export default ({ mode }) => {
   const base = env.VITE_BASE_PATH && env.VITE_BASE_PATH.trim() !== '' ? env.VITE_BASE_PATH : '/';
 
   return defineConfig({
+    resolve: { 
+      alias: { 
+        '@': path.resolve(__dirname, 'src') 
+      } 
+    },
     plugins: [react()],
     base,
     server: {
@@ -14,8 +20,9 @@ export default ({ mode }) => {
       strictPort: true,
       host: true,
       proxy: {
-        '/api': { target: 'http://localhost:8000', changeOrigin: true },
-        '/ws':  { target: 'ws://localhost:8000',  changeOrigin: true, ws: true }
+        '/api': { target: 'http://localhost:8080', changeOrigin: true },
+        '/ws':  { target: 'ws://localhost:8080',  changeOrigin: true, ws: true },
+        '/health': { target: 'http://localhost:8080', changeOrigin: true }
       }
     },
     build: {

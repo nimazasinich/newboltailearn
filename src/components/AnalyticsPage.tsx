@@ -1,29 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
-import { API } from '../services/api';
+import { getAnalytics, type AnalyticsData } from '@/services/analytics';
+import { PageSkeleton } from './ui/PageSkeleton';
 import { BarChart3, TrendingUp, PieChart, Activity, AlertTriangle } from 'lucide-react';
 
 export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [analytics, setAnalytics] = useState<any>(null);
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
 
   useEffect(() => {
     const loadAnalytics = async () => {
       try {
         setLoading(true);
-        const data = await API.getAnalytics();
+        const data = await getAnalytics();
         setAnalytics(data);
       } catch (err) {
         console.error('Failed to load analytics:', err);
         setError('خطا در بارگذاری تحلیل‌ها');
-        // Fallback data
-        setAnalytics({
-          totalModels: 15,
-          activeTraining: 3,
-          completedSessions: 142,
-          averageAccuracy: 0.87
-        });
       } finally {
         setLoading(false);
       }
@@ -33,11 +27,7 @@ export default function AnalyticsPage() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64" dir="rtl">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <PageSkeleton showHeader />;
   }
 
   return (
@@ -68,7 +58,7 @@ export default function AnalyticsPage() {
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics?.totalModels || 0}</div>
+            <div className="text-2xl font-bold">{analytics?.summary?.totalModels || 0}</div>
           </CardContent>
         </Card>
 
@@ -78,29 +68,27 @@ export default function AnalyticsPage() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics?.activeTraining || 0}</div>
+            <div className="text-2xl font-bold">{analytics?.summary?.activeTraining || 0}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">جلسات تکمیل شده</CardTitle>
+            <CardTitle className="text-sm font-medium">تکمیل شده</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics?.completedSessions || 0}</div>
+            <div className="text-2xl font-bold">{analytics?.summary?.completedModels || 0}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">متوسط دقت</CardTitle>
+            <CardTitle className="text-sm font-medium">کل دیتاست‌ها</CardTitle>
             <PieChart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {((analytics?.averageAccuracy || 0) * 100).toFixed(1)}%
-            </div>
+            <div className="text-2xl font-bold">{analytics?.summary?.totalDatasets || 0}</div>
           </CardContent>
         </Card>
       </div>

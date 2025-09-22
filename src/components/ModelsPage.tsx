@@ -1,32 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Play, Pause, Square, Trash2, Settings, Brain, TrendingUp, Clock, Database } from 'lucide-react';
-import { API } from '../services/api';
-import { websocketService } from '../services/websocket';
+import { getModels, createModel, startTraining, pauseTraining, resumeTraining, deleteModel, type Model } from '@/services/models';
+import { getDatasets, type Dataset } from '@/services/datasets';
+import { PageSkeleton } from './ui/PageSkeleton';
 
-interface Model {
-  id?: string | number;
-  name: string;
-  type: string;
-  status: string;
-  accuracy: number;
-  loss: number;
-  epochs: number;
-  current_epoch: number;
-  dataset_id?: string | number;
-  config?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface Dataset {
-  id?: string | number;
-  name: string;
-  samples: number;
-  size_mb: number;
-  status: string;
-  type?: string;
-  description?: string;
-}
+// Remove duplicate interfaces - using imported types
 
 interface TrainingProgress {
   modelId: number;
@@ -84,63 +62,14 @@ export function ModelsPage() {
       setLoading(true);
       setError(null);
       const [modelsData, datasetsData] = await Promise.all([
-        API.getModels(),
-        API.getDatasets()
+        getModels(),
+        getDatasets()
       ]);
       setModels(modelsData || []);
       setDatasets(datasetsData || []);
     } catch (error) {
       console.error('Failed to load data:', error);
       setError('خطا در بارگذاری داده‌ها');
-      // Set fallback data
-      setModels([
-        {
-          id: 1,
-          name: 'مدل طبقه‌بندی اسناد حقوقی',
-          type: 'persian-bert',
-          status: 'completed',
-          accuracy: 0.91,
-          loss: 0.15,
-          epochs: 50,
-          current_epoch: 50,
-          dataset_id: 'legal-docs-1',
-          config: '{"epochs": 50, "batch_size": 32, "learning_rate": 0.001}',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: 2,
-          name: 'مدل استخراج کلیدواژه',
-          type: 'dora',
-          status: 'training',
-          accuracy: 0.73,
-          loss: 0.35,
-          epochs: 100,
-          current_epoch: 45,
-          dataset_id: 'keywords-1',
-          config: '{"epochs": 100, "batch_size": 16, "learning_rate": 0.0005}',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ]);
-      setDatasets([
-        {
-          id: 'legal-docs-1',
-          name: 'اسناد حقوقی فارسی',
-          samples: 15000,
-          size_mb: 245,
-          status: 'ready',
-          type: 'legal-documents'
-        },
-        {
-          id: 'keywords-1',
-          name: 'کلیدواژه‌های حقوقی',
-          samples: 8500,
-          size_mb: 120,
-          status: 'ready',
-          type: 'keywords'
-        }
-      ]);
     } finally {
       setLoading(false);
     }
@@ -148,7 +77,7 @@ export function ModelsPage() {
 
   const loadModels = async () => {
     try {
-      const modelsData = await API.getModels();
+      const modelsData = await getModels();
       setModels(modelsData || []);
     } catch (error) {
       console.error('Failed to load models:', error);
@@ -158,9 +87,9 @@ export function ModelsPage() {
   const handleCreateModel = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await API.createModel({
+      await createModel({
         name: newModel.name,
-        type: newModel.type,
+        type: newModel.type as Model['type'],
         dataset_id: newModel.dataset_id,
         config: {
           epochs: newModel.epochs,
@@ -188,7 +117,7 @@ export function ModelsPage() {
   const handleTrainModel = async (id: string | number | undefined) => {
     if (!id) return;
     try {
-      await API.startTraining(id);
+      await startTraining(id);
       loadModels();
     } catch (error) {
       console.error('Failed to start training:', error);
@@ -199,7 +128,7 @@ export function ModelsPage() {
   const handlePauseTraining = async (id: string | number | undefined) => {
     if (!id) return;
     try {
-      await API.pauseTraining(id);
+      await pauseTraining(id);
       loadModels();
     } catch (error) {
       console.error('Failed to pause training:', error);
@@ -210,7 +139,7 @@ export function ModelsPage() {
   const handleResumeTraining = async (id: string | number | undefined) => {
     if (!id) return;
     try {
-      await API.resumeTraining(id);
+      await resumeTraining(id);
       loadModels();
     } catch (error) {
       console.error('Failed to resume training:', error);
@@ -225,8 +154,8 @@ export function ModelsPage() {
     }
 
     try {
-      // Note: apiService doesn't have deleteModel, so we'll just update the UI
-      setModels(prev => prev.filter(model => model.id !== id));
+      await deleteModel(id);
+      loadModels();
     } catch (error) {
       console.error('Failed to delete model:', error);
       alert('خطا در حذف مدل');
@@ -264,11 +193,7 @@ export function ModelsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <PageSkeleton showHeader />;
   }
 
   return (
