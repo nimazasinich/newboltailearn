@@ -1,0 +1,1083 @@
+{
+  "counts": {
+    "srcFiles": 55,
+    "serverFiles": 91,
+    "uiFiles": 6,
+    "hooksFiles": 4,
+    "servicesFiles": 14,
+    "pageFiles": 14
+  },
+  "routes": {
+    "defined": [
+      "/",
+      "/overview",
+      "/dashboard-advanced",
+      "/analytics",
+      "/data",
+      "/logs",
+      "/models",
+      "/monitoring",
+      "/training",
+      "/team",
+      "/settings",
+      "/download",
+      "/dashboard",
+      "*"
+    ],
+    "sidebar": [],
+    "sidebarMissingRoutes": [],
+    "routesUnlinked": [
+      "/",
+      "/overview",
+      "/dashboard-advanced",
+      "/analytics",
+      "/data",
+      "/logs",
+      "/models",
+      "/monitoring",
+      "/training",
+      "/team",
+      "/settings",
+      "/download",
+      "/dashboard",
+      "*"
+    ]
+  },
+  "backend": {
+    "appUses": [],
+    "routes": [
+      {
+        "method": "post",
+        "path": "/login",
+        "file": "server/modules/routes/auth.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/register",
+        "file": "server/modules/routes/auth.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/refresh",
+        "file": "server/modules/routes/auth.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/logout",
+        "file": "server/modules/routes/auth.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/profile",
+        "file": "server/modules/routes/auth.routes.js"
+      },
+      {
+        "method": "put",
+        "path": "/profile",
+        "file": "server/modules/routes/auth.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/change-password",
+        "file": "server/modules/routes/auth.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/login",
+        "file": "server/modules/routes/auth.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/register",
+        "file": "server/modules/routes/auth.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/refresh",
+        "file": "server/modules/routes/auth.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/logout",
+        "file": "server/modules/routes/auth.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/profile",
+        "file": "server/modules/routes/auth.routes.ts"
+      },
+      {
+        "method": "put",
+        "path": "/profile",
+        "file": "server/modules/routes/auth.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/change-password",
+        "file": "server/modules/routes/auth.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/",
+        "file": "server/modules/routes/models.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/:id",
+        "file": "server/modules/routes/models.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/",
+        "file": "server/modules/routes/models.routes.js"
+      },
+      {
+        "method": "put",
+        "path": "/:id",
+        "file": "server/modules/routes/models.routes.js"
+      },
+      {
+        "method": "delete",
+        "path": "/:id",
+        "file": "server/modules/routes/models.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/:id/logs",
+        "file": "server/modules/routes/models.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/:id/checkpoints",
+        "file": "server/modules/routes/models.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/:id/export",
+        "file": "server/modules/routes/models.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/",
+        "file": "server/modules/routes/models.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/:id",
+        "file": "server/modules/routes/models.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/",
+        "file": "server/modules/routes/models.routes.ts"
+      },
+      {
+        "method": "put",
+        "path": "/:id",
+        "file": "server/modules/routes/models.routes.ts"
+      },
+      {
+        "method": "delete",
+        "path": "/:id",
+        "file": "server/modules/routes/models.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/:id/logs",
+        "file": "server/modules/routes/models.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/:id/checkpoints",
+        "file": "server/modules/routes/models.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/:id/export",
+        "file": "server/modules/routes/models.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/",
+        "file": "server/routes/analytics.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/advanced",
+        "file": "server/routes/analytics.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/performance",
+        "file": "server/routes/analytics.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/usage",
+        "file": "server/routes/analytics.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/",
+        "file": "server/routes/analytics.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/advanced",
+        "file": "server/routes/analytics.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/performance",
+        "file": "server/routes/analytics.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/usage",
+        "file": "server/routes/analytics.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/login",
+        "file": "server/routes/auth.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/register",
+        "file": "server/routes/auth.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/me",
+        "file": "server/routes/auth.routes.js"
+      },
+      {
+        "method": "put",
+        "path": "/profile",
+        "file": "server/routes/auth.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/change-password",
+        "file": "server/routes/auth.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/login",
+        "file": "server/routes/auth.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/register",
+        "file": "server/routes/auth.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/me",
+        "file": "server/routes/auth.routes.ts"
+      },
+      {
+        "method": "put",
+        "path": "/profile",
+        "file": "server/routes/auth.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/change-password",
+        "file": "server/routes/auth.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/",
+        "file": "server/routes/datasets.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/",
+        "file": "server/routes/datasets.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/:id",
+        "file": "server/routes/datasets.routes.js"
+      },
+      {
+        "method": "put",
+        "path": "/:id",
+        "file": "server/routes/datasets.routes.js"
+      },
+      {
+        "method": "delete",
+        "path": "/:id",
+        "file": "server/routes/datasets.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/:id/download",
+        "file": "server/routes/datasets.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/:id/process",
+        "file": "server/routes/datasets.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/",
+        "file": "server/routes/datasets.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/",
+        "file": "server/routes/datasets.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/:id",
+        "file": "server/routes/datasets.routes.ts"
+      },
+      {
+        "method": "put",
+        "path": "/:id",
+        "file": "server/routes/datasets.routes.ts"
+      },
+      {
+        "method": "delete",
+        "path": "/:id",
+        "file": "server/routes/datasets.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/:id/download",
+        "file": "server/routes/datasets.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/:id/process",
+        "file": "server/routes/datasets.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/health",
+        "file": "server/routes/index.js"
+      },
+      {
+        "method": "get",
+        "path": "/health",
+        "file": "server/routes/index.ts"
+      },
+      {
+        "method": "get",
+        "path": "/",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/:id",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "put",
+        "path": "/:id",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "delete",
+        "path": "/:id",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/:id/train",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/:id/pause",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/:id/resume",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/:id/optimize",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/:id/export",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/:id/load",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/:id/checkpoints",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/:id/logs",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/:id",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "put",
+        "path": "/:id",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "delete",
+        "path": "/:id",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/:id/train",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/:id/pause",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/:id/resume",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/:id/optimize",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/:id/export",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/:id/load",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/:id/checkpoints",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/:id/logs",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/",
+        "file": "server/routes/monitoring.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/logs",
+        "file": "server/routes/monitoring.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/health",
+        "file": "server/routes/monitoring.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/performance",
+        "file": "server/routes/monitoring.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/",
+        "file": "server/routes/monitoring.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/logs",
+        "file": "server/routes/monitoring.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/health",
+        "file": "server/routes/monitoring.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/performance",
+        "file": "server/routes/monitoring.routes.ts"
+      }
+    ]
+  },
+  "usage": {
+    "clientCalls": [
+      "/models",
+      "/models/${id}/start",
+      "/models/${id}/pause",
+      "/models/${id}/stop",
+      "/models/${id}/resume",
+      "/datasets/${id}/download",
+      "/logs${query}",
+      "/analytics",
+      "/settings",
+      "/models/${id}/train",
+      "/models/${id}"
+    ],
+    "serverPaths": [
+      "/login",
+      "/register",
+      "/refresh",
+      "/logout",
+      "/profile",
+      "/profile",
+      "/change-password",
+      "/login",
+      "/register",
+      "/refresh",
+      "/logout",
+      "/profile",
+      "/profile",
+      "/change-password",
+      "/",
+      "/:id",
+      "/",
+      "/:id",
+      "/:id",
+      "/:id/logs",
+      "/:id/checkpoints",
+      "/:id/export",
+      "/",
+      "/:id",
+      "/",
+      "/:id",
+      "/:id",
+      "/:id/logs",
+      "/:id/checkpoints",
+      "/:id/export",
+      "/",
+      "/advanced",
+      "/performance",
+      "/usage",
+      "/",
+      "/advanced",
+      "/performance",
+      "/usage",
+      "/login",
+      "/register",
+      "/me",
+      "/profile",
+      "/change-password",
+      "/login",
+      "/register",
+      "/me",
+      "/profile",
+      "/change-password",
+      "/",
+      "/",
+      "/:id",
+      "/:id",
+      "/:id",
+      "/:id/download",
+      "/:id/process",
+      "/",
+      "/",
+      "/:id",
+      "/:id",
+      "/:id",
+      "/:id/download",
+      "/:id/process",
+      "/health",
+      "/health",
+      "/",
+      "/",
+      "/:id",
+      "/:id",
+      "/:id",
+      "/:id/train",
+      "/:id/pause",
+      "/:id/resume",
+      "/:id/optimize",
+      "/:id/export",
+      "/:id/load",
+      "/:id/checkpoints",
+      "/:id/logs",
+      "/",
+      "/",
+      "/:id",
+      "/:id",
+      "/:id",
+      "/:id/train",
+      "/:id/pause",
+      "/:id/resume",
+      "/:id/optimize",
+      "/:id/export",
+      "/:id/load",
+      "/:id/checkpoints",
+      "/:id/logs",
+      "/",
+      "/logs",
+      "/health",
+      "/performance",
+      "/",
+      "/logs",
+      "/health",
+      "/performance"
+    ]
+  },
+  "gaps": {
+    "calledNotDefined": [],
+    "definedNotCalled": [
+      {
+        "method": "post",
+        "path": "/login",
+        "file": "server/modules/routes/auth.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/register",
+        "file": "server/modules/routes/auth.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/refresh",
+        "file": "server/modules/routes/auth.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/logout",
+        "file": "server/modules/routes/auth.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/profile",
+        "file": "server/modules/routes/auth.routes.js"
+      },
+      {
+        "method": "put",
+        "path": "/profile",
+        "file": "server/modules/routes/auth.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/change-password",
+        "file": "server/modules/routes/auth.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/login",
+        "file": "server/modules/routes/auth.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/register",
+        "file": "server/modules/routes/auth.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/refresh",
+        "file": "server/modules/routes/auth.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/logout",
+        "file": "server/modules/routes/auth.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/profile",
+        "file": "server/modules/routes/auth.routes.ts"
+      },
+      {
+        "method": "put",
+        "path": "/profile",
+        "file": "server/modules/routes/auth.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/change-password",
+        "file": "server/modules/routes/auth.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/:id",
+        "file": "server/modules/routes/models.routes.js"
+      },
+      {
+        "method": "put",
+        "path": "/:id",
+        "file": "server/modules/routes/models.routes.js"
+      },
+      {
+        "method": "delete",
+        "path": "/:id",
+        "file": "server/modules/routes/models.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/:id/logs",
+        "file": "server/modules/routes/models.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/:id/checkpoints",
+        "file": "server/modules/routes/models.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/:id/export",
+        "file": "server/modules/routes/models.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/:id",
+        "file": "server/modules/routes/models.routes.ts"
+      },
+      {
+        "method": "put",
+        "path": "/:id",
+        "file": "server/modules/routes/models.routes.ts"
+      },
+      {
+        "method": "delete",
+        "path": "/:id",
+        "file": "server/modules/routes/models.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/:id/logs",
+        "file": "server/modules/routes/models.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/:id/checkpoints",
+        "file": "server/modules/routes/models.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/:id/export",
+        "file": "server/modules/routes/models.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/advanced",
+        "file": "server/routes/analytics.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/performance",
+        "file": "server/routes/analytics.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/usage",
+        "file": "server/routes/analytics.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/advanced",
+        "file": "server/routes/analytics.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/performance",
+        "file": "server/routes/analytics.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/usage",
+        "file": "server/routes/analytics.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/login",
+        "file": "server/routes/auth.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/register",
+        "file": "server/routes/auth.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/me",
+        "file": "server/routes/auth.routes.js"
+      },
+      {
+        "method": "put",
+        "path": "/profile",
+        "file": "server/routes/auth.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/change-password",
+        "file": "server/routes/auth.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/login",
+        "file": "server/routes/auth.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/register",
+        "file": "server/routes/auth.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/me",
+        "file": "server/routes/auth.routes.ts"
+      },
+      {
+        "method": "put",
+        "path": "/profile",
+        "file": "server/routes/auth.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/change-password",
+        "file": "server/routes/auth.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/:id",
+        "file": "server/routes/datasets.routes.js"
+      },
+      {
+        "method": "put",
+        "path": "/:id",
+        "file": "server/routes/datasets.routes.js"
+      },
+      {
+        "method": "delete",
+        "path": "/:id",
+        "file": "server/routes/datasets.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/:id/download",
+        "file": "server/routes/datasets.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/:id/process",
+        "file": "server/routes/datasets.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/:id",
+        "file": "server/routes/datasets.routes.ts"
+      },
+      {
+        "method": "put",
+        "path": "/:id",
+        "file": "server/routes/datasets.routes.ts"
+      },
+      {
+        "method": "delete",
+        "path": "/:id",
+        "file": "server/routes/datasets.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/:id/download",
+        "file": "server/routes/datasets.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/:id/process",
+        "file": "server/routes/datasets.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/health",
+        "file": "server/routes/index.js"
+      },
+      {
+        "method": "get",
+        "path": "/health",
+        "file": "server/routes/index.ts"
+      },
+      {
+        "method": "get",
+        "path": "/:id",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "put",
+        "path": "/:id",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "delete",
+        "path": "/:id",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/:id/train",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/:id/pause",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/:id/resume",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/:id/optimize",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/:id/export",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "post",
+        "path": "/:id/load",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/:id/checkpoints",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/:id/logs",
+        "file": "server/routes/models.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/:id",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "put",
+        "path": "/:id",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "delete",
+        "path": "/:id",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/:id/train",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/:id/pause",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/:id/resume",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/:id/optimize",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/:id/export",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "post",
+        "path": "/:id/load",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/:id/checkpoints",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/:id/logs",
+        "file": "server/routes/models.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/health",
+        "file": "server/routes/monitoring.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/performance",
+        "file": "server/routes/monitoring.routes.js"
+      },
+      {
+        "method": "get",
+        "path": "/health",
+        "file": "server/routes/monitoring.routes.ts"
+      },
+      {
+        "method": "get",
+        "path": "/performance",
+        "file": "server/routes/monitoring.routes.ts"
+      }
+    ],
+    "unused": {
+      "ui": [
+        "src/components/ui/Input.tsx",
+        "src/components/ui/PageSkeleton.tsx"
+      ],
+      "hooks": [],
+      "services": [],
+      "pages": [
+        "src/components/AnalyticsPage.tsx",
+        "src/components/Dashboard.tsx",
+        "src/components/DataPage.tsx",
+        "src/components/LoadingSpinner.tsx",
+        "src/components/LogsPage.tsx",
+        "src/components/ModelsPage.tsx",
+        "src/components/MonitoringPage.tsx",
+        "src/components/Overview.tsx",
+        "src/components/ProjectDownloader.tsx",
+        "src/components/SettingsPage.tsx",
+        "src/components/TeamPage.tsx",
+        "src/components/TrainingManagement.tsx"
+      ]
+    }
+  }
+}
