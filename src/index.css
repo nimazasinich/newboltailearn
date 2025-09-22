@@ -1,16 +1,280 @@
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Vazir:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Shabnam:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Import custom styles */
+@import './styles/animations.css';
+@import './styles/components.css';
+
 :root {
+  /* Color scheme */
   --bg-primary: #0b1120;
   --bg-secondary: #0f1628;
   --text-primary: #e2e8f0;
+  
+  /* Persian Legal AI brand colors */
+  --primary-50: #eff6ff;
+  --primary-100: #dbeafe;
+  --primary-500: #3b82f6;
+  --primary-600: #2563eb;
+  --primary-700: #1d4ed8;
+  --primary-900: #1e3a8a;
+  
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --gradient-success: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  
+  /* Shadows */
+  --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-medium: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-large: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  
+  /* Persian typography */
+  --font-persian: 'Vazirmatn', 'Vazir', 'Shabnam', 'Tahoma', sans-serif;
+  --font-persian-display: 'Vazir', 'Vazirmatn', 'Shabnam', sans-serif;
+  
+  /* Spacing for Persian text */
+  --persian-line-height: 1.8;
+  --persian-letter-spacing: 0.02em;
+}
+
+/* Dark mode variables */
+.dark {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --text-primary: #f1f5f9;
+}
+
+/* Base styles */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  font-family: 'Vazirmatn', sans-serif;
+  font-family: var(--font-persian);
   direction: rtl;
+  line-height: var(--persian-line-height);
+  letter-spacing: var(--persian-letter-spacing);
+  @apply bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100;
+  @apply transition-colors duration-300 ease-in-out;
+  
+  /* Enhanced scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+}
+
+body::-webkit-scrollbar {
+  width: 8px;
+}
+
+body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+body::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 4px;
+}
+
+body::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.7);
+}
+
+/* Typography enhancements */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-persian-display);
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+}
+
+/* Selection styles */
+::selection {
+  background: rgba(59, 130, 246, 0.3);
+  color: inherit;
+}
+
+::-moz-selection {
+  background: rgba(59, 130, 246, 0.3);
+  color: inherit;
+}
+
+/* Focus styles */
+*:focus {
+  outline: 2px solid rgba(59, 130, 246, 0.5);
+  outline-offset: 2px;
+}
+
+/* Enhanced button focus */
+button:focus,
+[role="button"]:focus {
+  outline: 2px solid rgba(59, 130, 246, 0.5);
+  outline-offset: 2px;
+}
+
+/* Link styles */
+a {
+  @apply text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300;
+  @apply transition-colors duration-200 ease-in-out;
+}
+
+/* Form elements */
+input, textarea, select {
+  font-family: var(--font-persian);
+}
+
+/* Loading states */
+.loading {
+  @apply animate-pulse;
+}
+
+/* Persian number styles */
+.persian-numbers {
+  font-feature-settings: "tnum" 1;
+}
+
+/* Utility classes */
+.text-gradient-primary {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.bg-gradient-primary {
+  background: var(--gradient-primary);
+}
+
+.bg-gradient-secondary {
+  background: var(--gradient-secondary);
+}
+
+.bg-gradient-success {
+  background: var(--gradient-success);
+}
+
+.shadow-soft {
+  box-shadow: var(--shadow-soft);
+}
+
+.shadow-medium {
+  box-shadow: var(--shadow-medium);
+}
+
+.shadow-large {
+  box-shadow: var(--shadow-large);
+}
+
+/* Persian-specific utilities */
+.font-persian {
+  font-family: var(--font-persian);
+}
+
+.font-persian-display {
+  font-family: var(--font-persian-display);
+}
+
+.leading-persian {
+  line-height: var(--persian-line-height);
+}
+
+.tracking-persian {
+  letter-spacing: var(--persian-letter-spacing);
+}
+
+/* Glass morphism effect */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dark .glass {
+  background: rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Responsive text sizes */
+@media (max-width: 640px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+@media (min-width: 1024px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+/* Print styles */
+@media print {
+  * {
+    @apply text-black bg-white;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  :root {
+    --shadow-soft: 0 0 0 2px currentColor;
+    --shadow-medium: 0 0 0 2px currentColor;
+    --shadow-large: 0 0 0 3px currentColor;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* RTL-specific adjustments */
+[dir="rtl"] {
+  text-align: right;
+}
+
+[dir="rtl"] .ltr {
+  direction: ltr;
+  text-align: left;
+}
+
+/* Custom scrollbar for Persian content */
+.persian-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 130, 246, 0.3) transparent;
+}
+
+.persian-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.persian-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.persian-scroll::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.3);
+  border-radius: 3px;
+}
+
+.persian-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.5);
 }

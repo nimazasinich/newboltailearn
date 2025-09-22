@@ -1,12 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import JSZip from 'jszip';
 import { Button } from './ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
-import { Download, Package, Server, Database, Code, FileText } from 'lucide-react';
+import { Badge } from './ui/Badge';
+import { Progress } from './ui/Progress';
+import { exportService, ExportRequest } from '@/services/export';
+import { Download, Package, Server, Database, Code, FileText, CheckCircle, AlertCircle, Clock, Zap } from 'lucide-react';
 
 export function ProjectDownloader() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
+  const [exportStatus, setExportStatus] = useState<'idle' | 'processing' | 'completed' | 'failed'>('idle');
+  const [exportId, setExportId] = useState<string | null>(null);
+  const [exportOptions, setExportOptions] = useState<ExportRequest>({
+    format: 'zip',
+    includeModels: true,
+    includeData: true,
+    includeLogs: true,
+    includeConfig: true
+  });
+  const [error, setError] = useState<string | null>(null);
+
+  // Poll export status
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (exportId && exportStatus === 'processing') {
+      interval = setInterval(async () => {
+        try {
+          const status = await exportService.getExportStatus(exportId);
+          setExportStatus(status.status);
+          setDownloadProgress(status.progress || 0);
+          
+          if (status.status === 'completed' || status.status === 'failed') {
+            clearInterval(interval);
+            if (status.status === 'failed') {
+              setError(status.message || 'خطا در صادرات پروژه');
+            }
+          }
+        } catch (err) {
+          console.error('Error polling export status:', err);
+          clearInterval(interval);
+          setExportStatus('failed');
+          setError('خطا در دریافت وضعیت صادرات');
+        }
+      }, 1000);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [exportId, exportStatus]);
 
   const generateCompleteProject = () => {
     return {
@@ -866,6 +910,52 @@ export default {
   const handleDownload = async () => {
     setIsGenerating(true);
     setDownloadProgress(0);
+    setError(null);
+    setExportStatus('processing');
+
+    try {
+      // Start export process
+      const response = await exportService.exportProject(exportOptions);
+      
+      if (response.success) {
+        setExportId(response.exportId);
+        
+        // If download URL is immediately available
+        if (response.downloadUrl) {
+          const link = document.createElement('a');
+          link.href = response.downloadUrl;
+          link.download = 'persian-legal-ai-complete.zip';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          setExportStatus('completed');
+          setDownloadProgress(100);
+        }
+      } else {
+        throw new Error(response.message || 'خطا در شروع صادرات');
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+      setError(error instanceof Error ? error.message : 'خطا در صادرات پروژه');
+      setExportStatus('failed');
+    } finally {
+      setIsGenerating(false);
+      
+      // Reset after delay
+      setTimeout(() => {
+        setDownloadProgress(0);
+        setExportStatus('idle');
+        setExportId(null);
+        setError(null);
+      }, 3000);
+    }
+  };
+
+  const handleFallbackDownload = async () => {
+    setIsGenerating(true);
+    setDownloadProgress(0);
+    setError(null);
 
     try {
       const zip = new JSZip();
@@ -915,20 +1005,98 @@ export default {
       console.error('Error generating project:', error);
       setIsGenerating(false);
       setDownloadProgress(0);
+      setError('خطا در تولید فایل پروژه');
     }
   };
 
   return (
-    <Card className="w-full max-w-4xl mx-auto" dir="rtl">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-3 text-2xl">
-          <Package className="h-8 w-8 text-blue-600" />
+    <div className="space-y-6" dir="rtl">
+      {/* Header */}
+      <div className="text-center">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
           دانلود پروژه کامل
-        </CardTitle>
+        </h1>
         <p className="text-gray-600 dark:text-gray-400">
           دانلود پروژه کامل Persian Legal AI با تمام فایل‌های لازم برای استقرار
         </p>
-      </CardHeader>
+      </div>
+
+      {/* Export Options */}
+      <Card className="w-full max-w-4xl mx-auto">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-3">
+            <Package className="h-6 w-6 text-blue-600" />
+            گزینه‌های صادرات
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <label className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
+              <input
+                type="checkbox"
+                checked={exportOptions.includeModels}
+                onChange={(e) => setExportOptions(prev => ({ ...prev, includeModels: e.target.checked }))}
+                className="text-blue-600"
+              />
+              <div className="flex items-center gap-2">
+                <Code className="h-4 w-4 text-purple-600" />
+                <span className="text-sm">مدل‌ها</span>
+              </div>
+            </label>
+
+            <label className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
+              <input
+                type="checkbox"
+                checked={exportOptions.includeData}
+                onChange={(e) => setExportOptions(prev => ({ ...prev, includeData: e.target.checked }))}
+                className="text-blue-600"
+              />
+              <div className="flex items-center gap-2">
+                <Database className="h-4 w-4 text-green-600" />
+                <span className="text-sm">داده‌ها</span>
+              </div>
+            </label>
+
+            <label className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
+              <input
+                type="checkbox"
+                checked={exportOptions.includeLogs}
+                onChange={(e) => setExportOptions(prev => ({ ...prev, includeLogs: e.target.checked }))}
+                className="text-blue-600"
+              />
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-orange-600" />
+                <span className="text-sm">لاگ‌ها</span>
+              </div>
+            </label>
+
+            <label className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
+              <input
+                type="checkbox"
+                checked={exportOptions.includeConfig}
+                onChange={(e) => setExportOptions(prev => ({ ...prev, includeConfig: e.target.checked }))}
+                className="text-blue-600"
+              />
+              <div className="flex items-center gap-2">
+                <Server className="h-4 w-4 text-blue-600" />
+                <span className="text-sm">تنظیمات</span>
+              </div>
+            </label>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Main Card */}
+      <Card className="w-full max-w-4xl mx-auto">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-3 text-2xl">
+            <Package className="h-8 w-8 text-blue-600" />
+            دانلود پروژه کامل
+            {exportStatus === 'completed' && <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">تکمیل شده</Badge>}
+            {exportStatus === 'processing' && <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">در حال پردازش</Badge>}
+            {exportStatus === 'failed' && <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">ناموفق</Badge>}
+          </CardTitle>
+        </CardHeader>
 
       <CardContent className="space-y-6">
         {/* Features Grid */}
@@ -1013,41 +1181,76 @@ export default {
           </div>
         </div>
 
-        {/* Progress Bar */}
-        {isGenerating && (
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>در حال تولید پروژه...</span>
-              <span>{downloadProgress}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${downloadProgress}%` }}
-              ></div>
+        {/* Status Messages */}
+        {error && (
+          <div className="p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg mb-6">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-red-600" />
+              <p className="text-red-800 dark:text-red-200">{error}</p>
             </div>
           </div>
         )}
 
-        {/* Download Button */}
-        <div className="flex justify-center">
+        {exportStatus === 'completed' && (
+          <div className="p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg mb-6">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              <p className="text-green-800 dark:text-green-200">صادرات با موفقیت تکمیل شد!</p>
+            </div>
+          </div>
+        )}
+
+        {/* Progress Bar */}
+        {(isGenerating || exportStatus === 'processing') && (
+          <div className="space-y-3 mb-6">
+            <div className="flex justify-between items-center text-sm">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-blue-600 animate-pulse" />
+                <span>در حال {exportStatus === 'processing' ? 'پردازش' : 'تولید'} پروژه...</span>
+              </div>
+              <span className="font-medium">{downloadProgress.toFixed(0)}%</span>
+            </div>
+            <Progress value={downloadProgress} className="h-3" />
+            <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+              {exportStatus === 'processing' ? 'سرور در حال آماده‌سازی فایل‌ها است' : 'در حال ایجاد فایل ZIP'}
+            </div>
+          </div>
+        )}
+
+        {/* Download Buttons */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
           <Button
             onClick={handleDownload}
-            disabled={isGenerating}
-            className="px-8 py-4 text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700"
+            disabled={isGenerating || exportStatus === 'processing'}
+            className="px-8 py-4 text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 disabled:opacity-50"
           >
-            {isGenerating ? (
+            {isGenerating || exportStatus === 'processing' ? (
               <>
                 <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent ms-2" />
-                در حال تولید...
+                در حال پردازش...
               </>
             ) : (
               <>
-                <Download className="h-5 w-5 ms-2" />
-                دانلود پروژه کامل (ZIP)
+                <Zap className="h-5 w-5 ms-2" />
+                دانلود از سرور (پیشنهادی)
               </>
             )}
           </Button>
+          
+          <Button
+            onClick={handleFallbackDownload}
+            disabled={isGenerating || exportStatus === 'processing'}
+            variant="outline"
+            className="px-6 py-4"
+          >
+            <Download className="h-4 w-4 ms-2" />
+            دانلود محلی (ZIP)
+          </Button>
+        </div>
+        
+        <div className="text-center text-sm text-gray-500 dark:text-gray-400 mt-4">
+          <p>دانلود از سرور: سریع‌تر و شامل داده‌های به‌روز</p>
+          <p>دانلود محلی: بدون نیاز به اتصال مداوم به سرور</p>
         </div>
 
         {/* Instructions */}
@@ -1063,7 +1266,8 @@ export default {
             <li>مرورگر را به آدرس <code className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded">http://localhost:8000</code> باز کنید</li>
           </ol>
         </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
